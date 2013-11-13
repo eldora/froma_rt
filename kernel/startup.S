@@ -43,8 +43,8 @@ Reset_Handler:
 
 	mov		r1, #0
 	cmp		r1, r2
-	ble		CPU0_Config	
-	b			CommonSection
+	beq		CPU0_Config	
+	b			CPU1_Config
 
 CPU0_Config:
 	mrc   p15,0,r1,c1,c0,0    // Read control register configuration data
@@ -58,7 +58,7 @@ CPU0_Config:
 	str   r2,[r1]         		// AUX_CORE_BOOT_0
 
 	ldr   r1,=0x48281804
-	adr   r2,CommonSection
+	adr   r2,CPU1_Config
 	str   r2,[r1]         		// AUX_CORE_BOOT_1
 
 	dmb
@@ -66,17 +66,15 @@ CPU0_Config:
 	sev
 	nop
 
-CommonSection:
-	mrc		p15,0,r2,c0,c0,5
-	and		r2,r2,#3						// Find Core ID
+	ldr		SP, Stack0_Addr
+	B			_init
 
-	adr		r1, Stack_Table
-	ldr		SP, [r1,r2,lsl #2]	// r1 = r2<<2
+CPU1_Config:
+	ldr		SP, Stack1_Addr
 	b			_init
 
-Stack_Table:
-	.word	__stack0
-	.word __stack1
+Stack0_Addr: .word __stack0
+Stack1_Addr: .word __stack1
 
 // ARM Architecture & Thumb C & C++ Compiler always use descending stack
 Undefined_Handler:

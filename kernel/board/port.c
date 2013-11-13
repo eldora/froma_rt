@@ -1,8 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-
-#include "FreeRTOS.h"
-#include "task.h"
+#include "FROMA_HEADER.h"
 
 #ifndef configKERNEL_INTERRUPT_PRIORITY
 	#define configKERNEL_INTERRUPT_PRIORITY 255
@@ -11,7 +7,7 @@
 /* Constants required to set up the initial stack. */
 #define portINITIAL_XPSR			( 0x0000001F )
 
-void vSerialPutString(int,const signed char * cons,int);
+//void vSerialPutString(int,const signed char * cons,int);
 
 // Interrupt Handler
 typedef struct STRUCT_HANDLER_PARAMETER
@@ -21,20 +17,16 @@ typedef struct STRUCT_HANDLER_PARAMETER
 } xInterruptHandlerDefinition;
 xInterruptHandlerDefinition pxInterruptHandlers[ portMAX_VECTORS ] = { { NULL, NULL } };
 
-extern unsigned portBASE_TYPE * volatile pxCurrentTCB;
+extern unsigned portBASE_TYPE * volatile pxCurrentTCB[ portNUM_PROCESSORS ];
 
 // GIC Interrupt MAX Vector ID 
 static unsigned long ulMaxVectorId = portMAX_VECTORS;
 
 // Each Mode Stack Space
-static portSTACK_TYPE puxFIQStack[ portFIQ_STACK_SIZE ];
-static portSTACK_TYPE puxIRQStack[ portIRQ_STACK_SIZE ];
-static portSTACK_TYPE puxAbortStack[ portABORT_STACK_SIZE ];
-static portSTACK_TYPE puxSVCStack[ portSVC_STACK_SIZE ];
-static portSTACK_TYPE *puxFIQStackPointer = &(puxFIQStack[ portFIQ_STACK_SIZE - 1 ] );
-static portSTACK_TYPE *puxIRQStackPointer = &(puxIRQStack[ portIRQ_STACK_SIZE - 1 ] );
-static portSTACK_TYPE *puxAbortStackPointer = &(puxAbortStack[ portABORT_STACK_SIZE - 1 ] );
-static portSTACK_TYPE *puxSVCStackPointer = &(puxSVCStack[ portSVC_STACK_SIZE - 1 ] );
+static portSTACK_TYPE puxFIQStack[ portNUM_PROCESSORS ][ portFIQ_STACK_SIZE ];
+static portSTACK_TYPE puxIRQStack[ portNUM_PROCESSORS ][ portIRQ_STACK_SIZE ];
+static portSTACK_TYPE puxAbortStack[ portNUM_PROCESSORS ][ portABORT_STACK_SIZE ];
+static portSTACK_TYPE puxSVCStack[ portNUM_PROCESSORS ][ portSVC_STACK_SIZE ];
 
 // Page Table
 static unsigned long PageTable[4096] __attribute__((aligned (16384)));
@@ -147,11 +139,12 @@ void vPortInterruptContext( void )
 
 void vPortStartFirstTask( void )
 {
+	volatile unsigned int currentCORE_ID = portCORE_ID();
 	__asm volatile(
 					" mov SP, %[svcsp]			\n" /* Set-up the supervisor stack. */
 					" svc 0 					\n" /* Use the supervisor call to be in an exception. */
 					" nop						\n"
-					: : [pxTCB] "r" (pxCurrentTCB), [svcsp] "r" (puxSVCStackPointer) :
+					: : [pxTCB] "r" (pxCurrentTCB[ currentCORE_ID ]), [svcsp] "r" (&(puxSVCStack[ currentCORE_ID ][ portFIQ_STACK_SIZE - 1 ] )) :
 				);
 }
 /*-----------------------------------------------------------*/
@@ -221,11 +214,11 @@ void vPortSysTickHandler( void *pvParameter )
 void vPortUART3Handler( void *pvParameter )
 {
 	/* Clear the Interrupt. */
-	vSerialPutString(2,(const signed char * const)"UART Interrupt\r\n", strlen("UART Interrupt\r\n"));
+	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"UART Interrupt\r\n", strlen("UART Interrupt\r\n"));
 
 #if configUSE_PREEMPTION == 1
 	/* If using preemption, also force a context switch. */
-//	vTaskSwitchContext();
+	vTaskSwitchContext();
 	portEND_SWITCHING_ISR(pdTRUE);
 #endif
 }
@@ -389,6 +382,7 @@ extern int main( void );
 extern int secondary_main( void );
 int i;
 unsigned long *pulSrc, *pulDest;
+volatile unsigned int currentCORE_ID;
 volatile unsigned long ulSCTLR = 0UL;
 //unsigned long ulValue = 0UL;
 extern unsigned long __isr_vector_start;
@@ -396,6 +390,7 @@ extern unsigned long __isr_vector_end;
 extern unsigned long _bss;
 extern unsigned long _ebss;
 
+	currentCORE_ID = portCORE_ID();
 
 	// Fill Zero, bss segment(Uninitialized data segment): Non-init Global Variable
 	for(pulDest = &_bss; pulDest < &_ebss; )
@@ -423,15 +418,15 @@ extern unsigned long _ebss;
 			" nop 								\n"
 			" mov SP, %[svcsp]					\n"
 			" nop 								\n"
-			: : [fiqsp] "r" (puxFIQStackPointer),
-				[irqsp] "r" (puxIRQStackPointer),
-				[abtsp] "r" (puxAbortStackPointer),
-				[svcsp] "r" (puxSVCStackPointer)
+			: : [fiqsp] "r" (&(puxFIQStack[ currentCORE_ID ][ portFIQ_STACK_SIZE - 1 ] )),
+				[irqsp] "r" (&(puxIRQStack[ currentCORE_ID ][ portFIQ_STACK_SIZE - 1 ] )),
+				[abtsp] "r" (&(puxAbortStack[ currentCORE_ID ][ portFIQ_STACK_SIZE - 1 ] )),
+				[svcsp] "r" (&(puxSVCStack[ currentCORE_ID ][ portFIQ_STACK_SIZE - 1 ] ))
 				:  );
 
 	// Copy the exception vector table over the boot loader
 	pulSrc = (unsigned long *)&__isr_vector_start;
-	pulDest = (unsigned long *)portEXCEPTION_VECTORS_BASE;						// Diff Each core
+	pulDest = (unsigned long *)portEXCEPTION_VECTORS_BASE;						// Difference Each core
 	for ( pulSrc = &__isr_vector_start; pulSrc < &__isr_vector_end; )
 		*pulDest++ = *pulSrc++;
 
@@ -483,7 +478,7 @@ extern unsigned long _ebss;
 
 	// Enable L1 I & D caches
 	// SCU controls by hardware the coherency of the two Cortex-A9 MPCores L1 data caches
-	//WriteSCTLR(ReadSCTLR()|(1<<2)|(1<<12));
+	WriteSCTLR(ReadSCTLR()|(1<<2)|(1<<12));
 
 #if 0
 	// Debug UART Code
@@ -499,7 +494,7 @@ extern unsigned long _ebss;
 // SMC: ARM Assembly SMC is swi
 void Undefined_Handler_Panic( void )
 {
-vSerialPutString(2,(const signed char * const)"undefined_panic\r\n", strlen("undefined_panic\r\n"));
+vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"undefined_panic\r\n", strlen("undefined_panic\r\n"));
 	__asm volatile ( " smc #0 " );
 	for (;;);
 }
@@ -507,7 +502,7 @@ vSerialPutString(2,(const signed char * const)"undefined_panic\r\n", strlen("und
 
 void Prefetch_Handler_Panic( void )
 {
-vSerialPutString(2,(const signed char * const)"prefetch_panic\r\n", strlen("prefetch_panic\r\n"));
+vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"prefetch_panic\r\n", strlen("prefetch_panic\r\n"));
 	__asm volatile ( " smc #0 " );
 	for (;;);
 }
@@ -515,7 +510,7 @@ vSerialPutString(2,(const signed char * const)"prefetch_panic\r\n", strlen("pref
 
 void Abort_Handler_Panic( void )
 {
-vSerialPutString(2,(const signed char * const)"abort_panic\r\n", strlen("abort_panic\r\n"));
+vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"abort_panic\r\n", strlen("abort_panic\r\n"));
 //	__asm volatile ( " smc #8 " );
 	for (;;);
 }

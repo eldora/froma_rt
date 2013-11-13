@@ -60,7 +60,7 @@
 #define mPutCh(ch)		(xSerialGetChar((xComPortHandle)mainPRINT_PORT, &ch, portMAX_DELAY))
 #define mGetCh(ch)		(xSerialPutChar((xComPortHandle)mainPRINT_PORT, ch, portMAX_DELAY))
 
-#define PRIMARY_CPU_ID		0
-#define SECONDARY_CPU_ID	1
+#define PRIMARY_CPU_ID			0
+#define SECONDARY_CPU_ID		1
 
 #endif
