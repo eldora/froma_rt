@@ -91,7 +91,7 @@
 //#define UART_CLK 3686400
 
 //static unsigned long ulUARTSemaphore = 0;
-PRIVILEGED_DATA static volatile spinlock_t lock = {0,};
+PRIVILEGED_DATA static spinlock_t lock = {0,};
 //PRIVILEGED_DATA volatile spinlock_t lock = {0,};
 //PRIVILEGED_DATA static volatile int xCheckFlag = 0;
 //PRIVILEGED_DATA static volatile int xCheckFlag = 0;
@@ -104,10 +104,10 @@ void vUARTInitialise(unsigned long ulUARTPeripheral, unsigned long ulBaud, unsig
 	//UART_IIR(UART3_BASE) |= 
 	prvSetupUARTInterrupt();
 
+#if 0
 	int tmp;
 	int efr;
 
-#if 0
 	// 1. Disable UART to access the UARTi.UART_DLL and UARTi.UART_DLH registers:
 	tmp = read((int *)UART_MDR1);
 	write(tmp | 0x7, (int *)UART_MDR1);
