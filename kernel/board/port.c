@@ -478,7 +478,7 @@ extern unsigned long _ebss;
 
 	// Enable L1 I & D caches
 	// SCU controls by hardware the coherency of the two Cortex-A9 MPCores L1 data caches
-	WriteSCTLR(ReadSCTLR()|(1<<2)|(1<<12));
+	//WriteSCTLR(ReadSCTLR()|(1<<2)|(1<<12));
 
 #if 0
 	// Debug UART Code

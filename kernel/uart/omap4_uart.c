@@ -91,7 +91,7 @@
 //#define UART_CLK 3686400
 
 //static unsigned long ulUARTSemaphore = 0;
-PRIVILEGED_DATA static spinlock_t lock = {0,};
+static volatile spinlock_t uartLock = {0,};
 //PRIVILEGED_DATA volatile spinlock_t lock = {0,};
 //PRIVILEGED_DATA static volatile int xCheckFlag = 0;
 //PRIVILEGED_DATA static volatile int xCheckFlag = 0;
@@ -219,16 +219,10 @@ portBASE_TYPE xUARTReceiveCharacter( unsigned long ulUARTPeripheral, signed char
 void vSerialPutString( xComPortHandle pxPort, const signed char * const pcString, unsigned short usStringLength )
 {
 	unsigned short usIndex = 0; 
-	//while(lock.flag!=0);
-	//lock.flag++;
-	portDISABLE_INTERRUPTS();
-	__spin_lock(&lock);
-	//xUARTSendCharacter( (unsigned long)pxPort, __spin_lock(&lock)+33, portMAX_DELAY );
-	//xUARTSendCharacter( (unsigned long)pxPort, lock.flag+40, portMAX_DELAY );
-	//if(portCORE_ID()==0)
 
-	//	xCheckFlag++;
-	//xUARTSendCharacter( (unsigned long)pxPort, xCheckFlag+33, portMAX_DELAY );
+	portDISABLE_INTERRUPTS();
+	__spin_lock(&uartLock);
+
 	for ( usIndex = 0; usIndex < usStringLength; usIndex++ )
 	{
 		if ( pdTRUE != xUARTSendCharacter( (unsigned long)pxPort, pcString[usIndex], portMAX_DELAY ) )
@@ -237,12 +231,9 @@ void vSerialPutString( xComPortHandle pxPort, const signed char * const pcString
 			break;
 		}    
 	}
-	//if(portCORE_ID())
-	//	xUARTSendCharacter( (unsigned long)pxPort, xCheckFlag+33, portMAX_DELAY );
-	__spin_unlock(&lock);
+
+	__spin_unlock(&uartLock);
 	portENABLE_INTERRUPTS();
-	//lock.flag--;
-	//xUARTSendCharacter( (unsigned long)pxPort, lock.flag+40, portMAX_DELAY );
 }
 
 signed portBASE_TYPE xSerialGetChar( xComPortHandle pxPort, signed char *pcRxedChar, portTickType xBlockTime )

@@ -1,15 +1,15 @@
 #include "spinlock.h"
 
-int __spin_lock(spinlock_t *lock)
-{
-	 while (__sync_lock_test_and_set(&lock->flag, 1))
-		 while(lock->flag);
-	 return 0;
+void __spin_lock(volatile spinlock_t *lock){
+	__asm volatile ( "dmb" ::: "memory" );
+	while(lock->flag)
+		__asm volatile ( "" ::: "memory" );
+	lock->flag = 1;
+	__asm volatile ( "dmb" ::: "memory" );
 }
 
-void __spin_unlock(spinlock_t *lock) {
-	//__sync_synchronize();
-	//lock->flag=0;
-	__sync_lock_release(&lock->flag);
-	//(lock->flag)--;
+void __spin_unlock(volatile spinlock_t *lock) {
+	lock->flag = 0;
+	__asm volatile ( "dsb" ::: "memory" );
+	__asm volatile ( "dmb" ::: "memory" );
 }

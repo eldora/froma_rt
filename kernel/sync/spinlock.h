@@ -1,11 +1,12 @@
 #ifndef SYNC_H
 #define SYNC_H
 
-typedef volatile struct spinlock_t {
-	  int flag;
+typedef struct{
+	//volatile unsigned char *pxBitBand;
+	volatile unsigned int flag;
 }spinlock_t;
 
-int __spin_lock(spinlock_t *lock);
-void __spin_unlock(spinlock_t *lock);
+void __spin_lock(volatile spinlock_t *lock);
+void __spin_unlock(volatile spinlock_t *lock);
 
 #endif
