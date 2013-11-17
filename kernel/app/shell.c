@@ -3,6 +3,9 @@
 #define COMMAND_BUFFER_SIZE		100
 
 xTaskHandle xShellTaskHandle;
+xTaskHandle xPrimeTaskHandle;
+xTaskHandle xIDLE1TaskHandle;
+extern PRIVILEGED_DATA tskTCB * volatile pxCurrentTCB[portNUM_PROCESSORS];
 
 struct shellCommandEntry gsCommandTable[] = {
 	{"help", "View available commands and their description.", vHelp},
@@ -108,7 +111,10 @@ void vPrime(const char *pcParameterBuffer){
 	char cTempBuffer[30];
 	extern xTaskHandle xPrimeTaskHandle;
 
-	vTaskSuspend(xShellTaskHandle);
+	//vTaskResume(xPrimeTaskHandle);
+	vTaskSuspend(xIDLE1TaskHandle, SECONDARY_CPU_ID);
+	//vTaskState(NULL);
+	//vTaskSuspend(xShellTaskHandle);
 }
 
 void vTaskState(const char *pcParameterBuffer){
@@ -116,6 +122,9 @@ void vTaskState(const char *pcParameterBuffer){
 	portCHAR cTempBuffer[300];
 
 	xNumberOfTasks = uxTaskGetNumberOfTasks();
+
+	sprintf(cTempBuffer, "pxCurruent_0: %s\t pxCurruent_1: %s\r\n", pxCurrentTCB[0]->pcTaskName, pxCurrentTCB[1]->pcTaskName);
+	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)cTempBuffer, strlen(cTempBuffer));
 
 	sprintf(cTempBuffer, "Number Of Tasks: %u\r\n", (unsigned int)xNumberOfTasks);
 	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)cTempBuffer, strlen(cTempBuffer));

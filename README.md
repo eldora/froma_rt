@@ -13,6 +13,13 @@
 - CPU0 Core만을 사용하여 쉘 상에서 문맥전환 구현 완료
 + 이유: xTaskCreate시에 xTaskHandle 변수의 주소값을 넘겨줬어야 했다.
 
+#### v1.7(20131118) ####
+- tasks.c: pxCurrentTCB, uxTopReadyPriority를 Core의 갯수에 맞게 변경하였으며 관련 코드도 pxCurrentTCB -> pxCurrentTCB[ portCORE_ID() ]형식으로 변경하였다. 그 밖에 것들은 TAG:AJH의 주석을 통해 참고
+- port.c: vPortSVCHandler, vPortInterruptContext(아직 안함) 함수에서 pxCurrentTCB 주소 부분 코드 변경
+- tasks.c: vTaskSuspend, vTaskResume에서 두번째 인자 CPU_CORE_ID를 인수로 받는 것으로 함수를 변경함, 이유는 vTaskSuspend, vTaskResume를 호출하는 함수는 대부분 메인 CPU이기 때문이다. 그래서 portCORE_ID()를 사용하면 pxCurrentTCB[0]과 pxCurrentTCB[1]이 비교하게 되서 올바르지 않은 결과가 발생함
+- 문제: prime을 실행시켰을 시 CPU1에서 pxTCB는 제대로 설정되었는데 실행이 안된다. tasks.c:vTaskSuspend부분부터 해석 portYIELD_WITHIN_API_CORE(xCoreID)
++ 이유: xTaskCreate시에 xTaskHandle 변수의 주소값을 넘겨줬어야 했다.
+
 #### 해야할 것 ####
 - Create Prime1, 2 생성 및 Shell에서 명령을 줬을 때 동작 후 ready task로 이동
 - spinlock에서 변수 확인할 때 release 후 0이 안된 것을 확인했는데 이것이 바로 0이 되게 고쳐야 함

@@ -237,9 +237,51 @@ static inline unsigned long portCORE_ID(void)
 
 static inline void portYIELD(void)
 {
+	//PPI(Private Peripheral Interrupt) Pending Bit Clear & Set SGI(Software Generated Interrupt) 0
 	if( ( portGIC_READ( portGIC_ICDISPR_BASE( portGIC_DISTRIBUTOR_BASE ) ) & portSGI_YIELD_VECTOR_ID ) == 0UL)
 	{
 		portGIC_WRITE( portGIC_ICDSGIR( portGIC_DISTRIBUTOR_BASE ), portSGI_YIELD( portCORE_ID() ) );
+		__asm__ __volatile__ ( "nop" ); /* Allow the yield SGI time to propagate. */
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+		__asm__ __volatile__ ( "nop" );
+	}
+}
+
+static inline void portYIELD_CORE(int xCoreID)
+{
+	//PPI(Private Peripheral Interrupt) Pending Bit Clear & Set SGI(Software Generated Interrupt) 0
+	if( ( portGIC_READ( portGIC_ICDISPR_BASE( portGIC_DISTRIBUTOR_BASE ) ) & portSGI_YIELD_VECTOR_ID ) == 0UL)
+	{
+		portGIC_WRITE( portGIC_ICDSGIR( portGIC_DISTRIBUTOR_BASE ), portSGI_YIELD( xCoreID ) );
 		__asm__ __volatile__ ( "nop" ); /* Allow the yield SGI time to propagate. */
 		__asm__ __volatile__ ( "nop" );
 		__asm__ __volatile__ ( "nop" );

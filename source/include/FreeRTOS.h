@@ -456,6 +456,10 @@ typedef portBASE_TYPE (*pdTASK_HOOK_CODE)( void * );
 	#define portYIELD_WITHIN_API portYIELD
 #endif
 
+#ifndef portYIELD_WITHIN_API_CORE
+	#define portYIELD_WITHIN_API_CORE(xCoreID) portYIELD_CORE(xCoreID)
+#endif
+
 #ifndef pvPortMallocAligned
 	#define pvPortMallocAligned( x, puxStackBuffer ) ( ( ( puxStackBuffer ) == NULL ) ? ( pvPortMalloc( ( x ) ) ) : ( puxStackBuffer ) )
 #endif

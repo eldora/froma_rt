@@ -136,6 +136,8 @@ typedef struct tskTaskControlBlock
 
 }tskTCB;
 
+#define CORE_ID_REVERSE_MASK(coreID)	( (coreID==1) ? 0 : 1)
+
 /*
  * Used internally only.
  */
@@ -730,7 +732,7 @@ vTaskSuspend( NULL );
  * \defgroup vTaskSuspend vTaskSuspend
  * \ingroup TaskCtrl
  */
-void vTaskSuspend( xTaskHandle pxTaskToSuspend ) PRIVILEGED_FUNCTION;
+void vTaskSuspend( xTaskHandle pxTaskToSuspend, int xCoreID ) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -779,7 +781,7 @@ vTaskResume( xHandle );
  * \defgroup vTaskResume vTaskResume
  * \ingroup TaskCtrl
  */
-void vTaskResume( xTaskHandle pxTaskToResume ) PRIVILEGED_FUNCTION;
+void vTaskResume( xTaskHandle pxTaskToResume, int xCoreID ) PRIVILEGED_FUNCTION;
 
 /**
  * task. h

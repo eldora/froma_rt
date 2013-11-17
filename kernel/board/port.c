@@ -94,9 +94,10 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 
 void vPortSVCHandler( void )
 {
+	volatile unsigned int currentCORE_ID = portCORE_ID();
 	__asm volatile(
 			" ldr r9, pxCurrentTCBConst2	\n"		// Load pxCurrentTCB Pointer Address
-			" ldr r8, [r9]								\n"		// Load pxCurrentTCB Address 
+			" ldr r8, [r9, %[portCORE], lsl #2]								\n"		// Load pxCurrentTCB Address 
 			" ldr lr, [r8]								\n"		// lr = Task Stack Pointer(pxTopOfStack)
 			" ldmia lr, {r0-lr}^				 	\n"		// Load Task's registers
 			" add lr, lr, #60						 	\n"		// Re-adjust the stack for the Task Context
@@ -107,7 +108,8 @@ void vPortSVCHandler( void )
 			" nop						 							\n"
 			"															\n"
 			"	.align 2										\n"
-			" pxCurrentTCBConst2: .word pxCurrentTCB	\n"
+			" pxCurrentTCBConst2: .word pxCurrentTCB 	\n"
+			: : [portCORE] "r" (currentCORE_ID) : "memory"
 			);
 }
 /*-----------------------------------------------------------*/
@@ -125,6 +127,7 @@ void vPortInterruptContext( void )
 			" sub LR, LR, #60		 		\n"		/* Adjust the Task's stack pointer. */
 			" ldr r9, pxCurrentTCBConst2	\n"		/* Load the pxCurrentTCB pointer address. */
 			" ldr r8, [r9]					\n"		/* Load the pxCurrentTCB address. */
+			//" ldr r8, [r9, %[portCORE], lsl #2]								\n"		// Load pxCurrentTCB Address 
 			" str lr, [r8]	 				\n"		/* Store the Task stack pointer to the TCB. */
 			" bl vPortGICInterruptHandler	\n"		/* Branch and link to find specific service handler. */
 			" ldr r8, [r9]					\n"		/* Load the pxCurrentTCB address. */
