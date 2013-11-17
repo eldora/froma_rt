@@ -9,6 +9,10 @@
 - L1 D&I Cache Disabled, Using Memory Barrier - data sharing 확인
 - CPU 초기화 후 동기화 루틴 구현 완료
 
+#### v1.6(20131117) ####
+- CPU0 Core만을 사용하여 쉘 상에서 문맥전환 구현 완료
++ 이유: xTaskCreate시에 xTaskHandle 변수의 주소값을 넘겨줬어야 했다.
+
 #### 해야할 것 ####
 - Create Prime1, 2 생성 및 Shell에서 명령을 줬을 때 동작 후 ready task로 이동
 - spinlock에서 변수 확인할 때 release 후 0이 안된 것을 확인했는데 이것이 바로 0이 되게 고쳐야 함

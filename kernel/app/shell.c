@@ -105,10 +105,10 @@ void vVersion(const char *pcParameterBuffer){
 }
 
 void vPrime(const char *pcParameterBuffer){
-	//xPrimeTaskStart = 1;
-	//vTaskSuspend(xShellTaskHandle);
-	//vTaskDelay(num);
-	//taskYIELD();
+	char cTempBuffer[30];
+	extern xTaskHandle xPrimeTaskHandle;
+
+	vTaskSuspend(xShellTaskHandle);
 }
 
 void vTaskState(const char *pcParameterBuffer){

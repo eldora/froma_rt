@@ -1,12 +1,15 @@
 #include "FROMA_HEADER.h"
 
+xTaskHandle xPrimeTaskHandle;
+extern xTaskHandle xShellTaskHandle;
+extern void vTaskState(const char *pcParameterBuffer);
+
 void vPrimeTask( void *pvParameters ){
 	int i, j, isPrime, end;
 	char primeBuf[30];
 	portTickType xLastExecutionTime;
 
-	//end = *((int*)pvParameters);
-	end = 10000;
+	end = *((int*)pvParameters);
 
 	for(;;){
 		//if(!xPrimeTaskStart)
@@ -33,8 +36,7 @@ void vPrimeTask( void *pvParameters ){
 		vSerialPutString( (xComPortHandle)mainPRINT_PORT, (const signed char * const)primeBuf, strlen(primeBuf) );
 
 		//xPrimeTaskStart = 0;
-		//vTaskResume(xShellTaskHandle);
-		taskYIELD();
+		vTaskResume(xShellTaskHandle);
 	}
 }
 

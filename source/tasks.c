@@ -133,6 +133,11 @@ typedef struct tskTaskControlBlock
 	#define static
 #endif
 
+#if UART_DEBUG
+typedef void * xComPortHandle;
+extern void vSerialPutString( xComPortHandle pxPort, const signed char * const pcString, unsigned short usStringLength );
+#endif
+
 /*lint -e956 */
 PRIVILEGED_DATA tskTCB * volatile pxCurrentTCB = NULL;
 //PRIVILEGED_DATA tskTCB * volatile pxCurrentTCB1 = NULL;

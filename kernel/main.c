@@ -6,10 +6,12 @@ static void prvSetupHardware();
 static portBASE_TYPE xCoreStart_0 = pdFALSE;
 static portBASE_TYPE xCoreStart_1 = pdFALSE;
 extern xTaskHandle xShellTaskHandle;
+extern xTaskHandle xPrimeTaskHandle;
 
 int secondary_main( void )
 {
 	xTaskHandle xPrimeTaskHandle = NULL;
+	int num = 100000;
 	char cAddress[20];
 
 	/* waiting init Core0 */
@@ -31,7 +33,7 @@ int secondary_main( void )
 	vSerialPutString((xComPortHandle)configUART_PORT,(const signed char * const)cAddress, strlen(cAddress) );
 #endif
 
-	xTaskCreate( vPrimeTask, (const signed char *)"Prime", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, xPrimeTaskHandle);
+	//xTaskCreate( vPrimeTask, (const signed char *)"Prime", configMINIMAL_STACK_SIZE, &num, mainCHECK_TASK_PRIORITY, xPrimeTaskHandle);
 	//vTaskSuspend(xPrimeTaskHandle);
 
 	/* init & create Task Core1 END */
@@ -43,8 +45,8 @@ int secondary_main( void )
 
 int main( void )
 {
-	//int num = 1000;
-	char cAddress[20];
+	int num = 100000;
+	char cAddress[50];
 
 #if 0
 	sprintf( cAddress, "0 shared:%d\t", sharedValue );
@@ -64,9 +66,12 @@ int main( void )
 
 	/* Start the tasks defined within the file. */
 	//xTaskCreate( vCheckTask, (const signed char *)"Check", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, NULL );
-	//xTaskCreate( vPrimeTask, (const signed char *)"Prime", configMINIMAL_STACK_SIZE, &num, mainCHECK_TASK_PRIORITY, NULL );
+	xTaskCreate( vPrimeTask, (const signed char *)"Prime", configMINIMAL_STACK_SIZE, &num, mainCHECK_TASK_PRIORITY-1, &xPrimeTaskHandle );
 	//xTaskCreate( vUARTEchoTask, (const signed char *)"EchoTask", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, NULL );
-	xTaskCreate( vShellTask, (const signed char *)"Shell", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, xShellTaskHandle);
+	xTaskCreate( vShellTask, (const signed char *)"Shell", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, &xShellTaskHandle);
+
+	sprintf(cAddress, "\r\nmain Shell: %s, %s\r\n", ((tskTCB*)xShellTaskHandle)->pcTaskName, ((tskTCB*)xPrimeTaskHandle)->pcTaskName);
+	vSerialPutString( (xComPortHandle)mainPRINT_PORT, (const signed char * const)cAddress, strlen(cAddress) );
 
 	/* init Core0 END */
 	xCoreStart_0 = pdTRUE;
