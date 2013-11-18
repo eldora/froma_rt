@@ -28,6 +28,16 @@
 - clockInterrupt 멈춘 이유: pxInterruptHandlers에서 [ portCORE_ID() ]->[ ucProcessorTargets ]이유 -> main.c:151에서 ucProcessorTargets인자가 1로 되어 있었다. 이를 portCORE_ID로 변경
 - prvSetupTimerInterrupt()를 주석처리하고 임시저장, 현재 타이머인터럽트가 일제히 동작안하는 상태에서 쉘상에서 태스크들의 컨택스트 스위칭은 잘 일어난다.
 
+#### v1.9(20131119) ####
+- 1. Core1에서 인터럽터를 인에이블 시키지 않고 vPortInstallInterruptHandler( (void (*)(void *))vPortYieldFromISR...) 설정도 안해줬는데 왜 반대로 Core1에서만 작동하고 Core0에서는 작동안할까?
+- 1번의 이유: vPortInstallInterruptHandler에서 정의된 것이 uxProcessorTargets을 portCORE_ID()와 동일하게 봐서 이 함수에서는 이것을 사용했는데 다르다. 시프트연산이 적용된 것이므로 portCORE_ID를 적어줘야 함, 그래서 aboart panic이 나지 않았나 예상해봄
+- 2. 아직도 prvSetupTimerInterrupt()를 호출하여 타이머를 설정하면 abort panic이 발생함
+- 3. 두 개의 prime 명령을 실행시켰을 시 한쪽이 제대로 돌아오지 않음
+- 3번의 이유: PRIME_CPU0, 1은 인자값으로 받은 CPU를 가지고 Resume할 테스크를 선택했기 때문에 primeTask 내부에서 portCORE_ID()를 통해 Resume할 테스크를 선택해주는 방식으로 변경하였다.
+- spinlock.c: 함수 내부에 인터럽트 Enable/Disable를 삽입함
+- 4. 자신의 CPU에서 생성한 태스크를 다른 태스크가 실행시키고 Resume하려면 정상작동하지 않는다 왜?
+- 우선순위를 변경하여 각 CPU에서 생성한 것들은 자신의 CPU에 할당되도록 하여 문맥전환이 제대로 수행되는 것을 확인함
+
 #### 해야할 것 ####
 - Create Prime1, 2 생성 및 Shell에서 명령을 줬을 때 동작 후 ready task로 이동
 - spinlock에서 변수 확인할 때 release 후 0이 안된 것을 확인했는데 이것이 바로 0이 되게 고쳐야 함

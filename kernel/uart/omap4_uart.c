@@ -220,7 +220,6 @@ void vSerialPutString( xComPortHandle pxPort, const signed char * const pcString
 {
 	unsigned short usIndex = 0; 
 
-	portDISABLE_INTERRUPTS();
 	__spin_lock(&uartLock);
 
 	for ( usIndex = 0; usIndex < usStringLength; usIndex++ )
@@ -233,7 +232,6 @@ void vSerialPutString( xComPortHandle pxPort, const signed char * const pcString
 	}
 
 	__spin_unlock(&uartLock);
-	portENABLE_INTERRUPTS();
 }
 
 signed portBASE_TYPE xSerialGetChar( xComPortHandle pxPort, signed char *pcRxedChar, portTickType xBlockTime )

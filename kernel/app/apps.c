@@ -15,13 +15,10 @@ void vPrimeTask( void *pvParameters ){
 	xEachPrime = *((xPRIME*)pvParameters);
 	start = xEachPrime.start;
 	end = xEachPrime.end;
-	core = xEachPrime.core;
 #endif
 
 	for(;;){
-		//if(!xPrimeTaskStart)
-		//	continue;
-
+		core = portCORE_ID();
 		xLastExecutionTime = xTaskGetTickCount();
 
 		for(i=start; i<=end; i++){
@@ -44,13 +41,11 @@ void vPrimeTask( void *pvParameters ){
 
 		vTaskState(NULL);
 
-		//xPrimeTaskStart = 0;
 		if(core==PRIMARY_CPU_ID)
 			vTaskResume(xShellTaskHandle, core);
 
 		if(core==SECONDARY_CPU_ID)
 			vTaskResume(xIDLE1TaskHandle, core);
-			//vTaskSuspend(NULL);
 	}
 }
 

@@ -140,6 +140,8 @@ extern void vSerialPutString( xComPortHandle pxPort, const signed char * const p
 //vSerialPutString((xComPortHandle)2, (const signed char * const)"1\r\n", 4 );
 #endif
 
+static volatile spinlock_t taskSwitchLock = {0,};
+
 /*lint -e956 */
 //PRIVILEGED_DATA tskTCB * volatile pxCurrentTCB = NULL;
 //PRIVILEGED_DATA tskTCB * volatile pxCurrentTCB1 = NULL;
@@ -923,9 +925,6 @@ tskTCB * pxNewTCB;
 	{
 	tskTCB *pxTCB;
 	char cAddress[50];
-	sprintf(cAddress, "\r\nSuspend: %s, %s\r\n", ((tskTCB*)pxTaskToSuspend)->pcTaskName, ((tskTCB*)pxCurrentTCB[xCoreID])->pcTaskName);
-	vSerialPutString( (xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"1\r\n", 4 );
 
 		taskENTER_CRITICAL();
 		{
@@ -933,7 +932,6 @@ tskTCB * pxNewTCB;
 			suspended. */
 			if( pxTaskToSuspend == pxCurrentTCB[ xCoreID ] )
 			{
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"2\r\n", 4 );
 				pxTaskToSuspend = NULL;
 			}
 
@@ -944,17 +942,14 @@ tskTCB * pxNewTCB;
 			else
 				pxTCB = ( tskTCB * ) pxCurrentTCB[ xCoreID ];
 
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"3\r\n", 4 );
 			traceTASK_SUSPEND( pxTCB );
 
 			/* Remove task from the ready/delayed list and place in the	suspended list. */
 			vListRemove( &( pxTCB->xGenericListItem ) );
 
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"4\r\n", 4 );
 			/* Is the task waiting on an event also? */
 			if( pxTCB->xEventListItem.pvContainer )
 			{
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"5\r\n", 4 );
 				vListRemove( &( pxTCB->xEventListItem ) );
 			}
 
@@ -962,15 +957,13 @@ tskTCB * pxNewTCB;
 		}
 		taskEXIT_CRITICAL();
 
-	sprintf(cAddress, "\r\nSuspend: %s, %s\r\n", ((tskTCB*)pxTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[xCoreID])->pcTaskName);
-	vSerialPutString( (xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"6\r\n", 4 );
+		sprintf(cAddress, "\r\nSuspend: %s, %s\r\n", ((tskTCB*)pxTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[xCoreID])->pcTaskName);
+		vSerialPutString( (xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
 		if( ( void * ) pxTaskToSuspend == NULL )
 		{
 			if( xSchedulerRunning != pdFALSE )
 			{
 				/* We have just suspended the current task. */
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"7\r\n", 4 );
 				//portYIELD_WITHIN_API();
 				portYIELD_WITHIN_API_CORE(xCoreID);
 			}
@@ -981,7 +974,6 @@ tskTCB * pxNewTCB;
 				must be adjusted to point to a different task. */
 				if( listCURRENT_LIST_LENGTH( &xSuspendedTaskList ) == uxCurrentNumberOfTasks ) 
 				{
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"8\r\n", 4 );
 					/* No other tasks are ready, so set pxCurrentTCB[ xCoreID ] back to
 					NULL so when the next task is created pxCurrentTCB[ xCoreID ] will
 					be set to point to it no matter what its relative priority
@@ -990,7 +982,6 @@ tskTCB * pxNewTCB;
 				}
 				else
 				{
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"9\r\n", 4 );
 					vTaskSwitchContext();
 				}
 			}
@@ -1050,17 +1041,14 @@ tskTCB * pxNewTCB;
 
 		sprintf(cAddress, "\r\nResume: %s, %s\r\n", ((tskTCB*)pxTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[xCoreID])->pcTaskName);
 		vSerialPutString( (xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"1\r\n", 4 );
 		/* The parameter cannot be NULL as it is impossible to resume the
 		currently executing task. */
 		if( ( pxTCB != NULL ) && ( pxTCB != pxCurrentTCB[ xCoreID ] ) )
 		{
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"2\r\n", 4 );
 			taskENTER_CRITICAL();
 			{
 				if( xTaskIsTaskSuspended( pxTCB ) == pdTRUE )
 				{
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"3\r\n", 4 );
 					traceTASK_RESUME( pxTCB );
 
 					/* As we are in a critical section we can access the ready
@@ -1071,10 +1059,10 @@ tskTCB * pxNewTCB;
 					/* We may have just resumed a higher priority task. */
 					if( pxTCB->uxPriority >= pxCurrentTCB[ xCoreID ]->uxPriority )
 					{
-		vSerialPutString((xComPortHandle)2, (const signed char * const)"4\r\n", 4 );
 						/* This yield may not cause the task just resumed to run, but
 						will leave the lists in the correct state for the next yield. */
-						portYIELD_WITHIN_API();
+						portYIELD_WITHIN_API_CORE(xCoreID);
+						//portYIELD_WITHIN_API();
 					}
 				}
 			}
@@ -1135,7 +1123,7 @@ void vTaskStartScheduler( void )
 
 	/* Add the idle task at the lowest priority. */
 	xReturn = xTaskCreate( prvIdleTask, ( signed char * ) "IDLE0", tskIDLE_STACK_SIZE, ( void * ) NULL, ( tskIDLE_PRIORITY | portPRIVILEGE_BIT ), ( xTaskHandle * ) NULL );
-	xReturn = xTaskCreate( prvIdleTask, ( signed char * ) "IDLE1", tskIDLE_STACK_SIZE, ( void * ) NULL, ( tskIDLE_PRIORITY | portPRIVILEGE_BIT ), ( xTaskHandle * ) NULL );
+	//xReturn = xTaskCreate( prvIdleTask, ( signed char * ) "IDLE1", tskIDLE_STACK_SIZE, ( void * ) NULL, ( tskIDLE_PRIORITY | portPRIVILEGE_BIT ), ( xTaskHandle * ) NULL );
 
 	#if ( configUSE_TIMERS == 1 )
 	{
@@ -1251,7 +1239,7 @@ signed portBASE_TYPE xAlreadyYielded = pdFALSE;
 				{
 					while( uxMissedTicks > ( unsigned portBASE_TYPE ) 0 )
 					{
-						vTaskIncrementTick();
+						vTaskIncrementTick(portCORE_ID());
 						--uxMissedTicks;
 					}
 
@@ -1509,8 +1497,7 @@ unsigned portBASE_TYPE uxTaskGetNumberOfTasks( void )
  * documented in task.h
  *----------------------------------------------------------*/
 
-
-void vTaskIncrementTick( void )
+void vTaskIncrementTick( int xCoreID )
 {
 tskTCB * pxTCB;
 
@@ -1519,8 +1506,8 @@ tskTCB * pxTCB;
 	tasks to be unblocked. */
 	if( uxSchedulerSuspended == ( unsigned portBASE_TYPE ) pdFALSE )
 	{
-		++xTickCount[ portCORE_ID() ];
-		if( xTickCount[ portCORE_ID() ] == ( portTickType ) 0 )
+		++xTickCount[ xCoreID ];
+		if( xTickCount[ xCoreID ] == ( portTickType ) 0 )
 		{
 			xList *pxTemp;
 
@@ -1539,7 +1526,7 @@ tskTCB * pxTCB;
 				/* The new current delayed list is empty.  Set 
 				xNextTaskUnblockTime to the maximum possible value so it is 
 				extremely unlikely that the	
-				if( xTickCount[ portCORE_ID() ] >= xNextTaskUnblockTime ) test will pass until 
+				if( xTickCount[ xCoreID ] >= xNextTaskUnblockTime ) test will pass until 
 				there is an item in the delayed list. */
 				xNextTaskUnblockTime = portMAX_DELAY;
 			}
@@ -1581,7 +1568,7 @@ tskTCB * pxTCB;
 	}
 	#endif
 
-	traceTASK_INCREMENT_TICK( xTickCount[ portCORE_ID() ] );
+	traceTASK_INCREMENT_TICK( xTickCount[ xCoreID ] );
 }
 /*-----------------------------------------------------------*/
 
@@ -1730,6 +1717,9 @@ void vTaskSwitchContext( void )
 	tskTCB * volatile pxTempTCB;
 	char cAddress[50];
 
+#if 0
+	__spin_lock(&taskSwitchLock);
+#endif
 	if( uxSchedulerSuspended != ( unsigned portBASE_TYPE ) pdFALSE )
 	{
 		/* The scheduler is currently suspended - do not allow a context
@@ -1783,11 +1773,15 @@ void vTaskSwitchContext( void )
 		if(pxTempTCB == pxCurrentTCB[ CORE_ID_REVERSE_MASK(portCORE_ID()) ])
 			listGET_OWNER_OF_NEXT_ENTRY( pxTempTCB, &( pxReadyTasksLists[ uxTopReadyPriority[ portCORE_ID() ] ] ) ); 
 
-	sprintf(cAddress, "\r\nSwitch: %s, %s\r\n", ((tskTCB*)pxTempTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[portCORE_ID()])->pcTaskName);
-	vSerialPutString((xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
+	//	sprintf(cAddress, "\r\nCore:%d Switch: %s, %s TopReadyPri:%d\r\n", portCORE_ID(), ((tskTCB*)pxTempTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[portCORE_ID()])->pcTaskName, uxTopReadyPriority[ portCORE_ID() ]);
+		//vSerialPutString((xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
 
 		pxCurrentTCB[ portCORE_ID() ] = pxTempTCB;
+		__asm volatile( "dmb" ::: "memory" );
 
+#if 0
+		 __spin_unlock(&taskSwitchLock);
+#endif
 		traceTASK_SWITCHED_IN();
 		vWriteTraceToBuffer();
 	}

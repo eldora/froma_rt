@@ -43,7 +43,7 @@ int secondary_main( void )
 	vSerialPutString((xComPortHandle)configUART_PORT,(const signed char * const)cAddress, strlen(cAddress) );
 #endif
 
-	xTaskCreate( vPrimeTask, (const signed char *)"Prime_CPU1", configMINIMAL_STACK_SIZE, &xPrimeCPU1, mainCHECK_TASK_PRIORITY-1, &xPrimeTaskHandle );
+	xTaskCreate( vPrimeTask, (const signed char *)"Prime1", configMINIMAL_STACK_SIZE, &xPrimeCPU1, mainCHECK_TASK_PRIORITY-1, &xPrimeTaskHandle );
 	xTaskCreate( prvIdleTask, ( signed char * ) "IDLE1", tskIDLE_STACK_SIZE, ( void * ) NULL, mainCHECK_TASK_PRIORITY, &xIDLE1TaskHandle );
 	//xTaskCreate( vUARTEchoTask, (const signed char *)"UART", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, &xIDLE1TaskHandle );
 	//vTaskSuspend(xPrimeTaskHandle);
@@ -52,8 +52,8 @@ int secondary_main( void )
 	__asm volatile( "dsb" ::: "memory" );
 	xCoreStart_1 = pdTRUE;
 
-	//xPortStartScheduler();
-	vPortStartFirstTask();
+	xPortStartScheduler();
+	//vPortStartFirstTask();
 	//while(pdTRUE);
 
 	/* Should never reach here. */
@@ -90,7 +90,7 @@ int main( void )
 
 	/* Start the tasks defined within the file. */
 	//xTaskCreate( vCheckTask, (const signed char *)"Check", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, NULL );
-	xTaskCreate( vPrimeTask, (const signed char *)"Prime_CPU0", configMINIMAL_STACK_SIZE, &xPrimeCPU0, mainCHECK_TASK_PRIORITY-1, &xPrimeTaskHandle );
+	xTaskCreate( vPrimeTask, (const signed char *)"Prime0", configMINIMAL_STACK_SIZE, &xPrimeCPU0, mainCHECK_TASK_PRIORITY-2, &xPrimeTaskHandle );
 	//xTaskCreate( vUARTEchoTask, (const signed char *)"EchoTask", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, NULL );
 	xTaskCreate( vShellTask, (const signed char *)"Shell", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY+1, &xShellTaskHandle);
 

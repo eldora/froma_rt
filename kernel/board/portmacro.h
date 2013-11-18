@@ -163,7 +163,7 @@ static inline void portENABLE_INTERRUPTS(void)
 static inline unsigned long portCORE_ID(void)
 {
 	unsigned long val;
-	__asm(" mrc p15,0,%[val],c0,c0,5\n":[val] "=r" (val)::);
+	__asm(" mrc p15,0,%[val],c0,c0,5\n":[val] "=r" (val)::"memory");
 	return val&3;
 }
 /* Peripheral Base. */

@@ -1220,7 +1220,7 @@ portBASE_TYPE xTaskCallApplicationTaskHook( xTaskHandle xTask, void *pvParameter
  * for a finite period required removing from a blocked list and placing on
  * a ready list.
  */
-void vTaskIncrementTick( void ) PRIVILEGED_FUNCTION;
+void vTaskIncrementTick( int xCoreID ) PRIVILEGED_FUNCTION;
 
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS AN

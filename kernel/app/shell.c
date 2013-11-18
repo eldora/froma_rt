@@ -20,6 +20,7 @@ void vShellTask( void *pvParameters ){
 	portBASE_TYPE xCommandBufferIndex = 0;
 	signed portCHAR cInputKey;
 
+	vTaskState(NULL);
 	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"FROMA$ ", 7);
 	while(1){
 		if(pdTRUE == xSerialGetChar((xComPortHandle)mainPRINT_PORT, &cInputKey, portMAX_DELAY)){
@@ -111,11 +112,8 @@ void vPrime(const char *pcParameterBuffer){
 	char cTempBuffer[30];
 	extern xTaskHandle xPrimeTaskHandle;
 
-	//vTaskResume(xPrimeTaskHandle);
 	vTaskSuspend(xIDLE1TaskHandle, SECONDARY_CPU_ID);
 	vTaskSuspend(xShellTaskHandle, PRIMARY_CPU_ID);
-	vTaskState(NULL);
-	//vTaskSuspend(xShellTaskHandle);
 }
 
 void vTaskState(const char *pcParameterBuffer){

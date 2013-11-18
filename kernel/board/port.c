@@ -18,6 +18,7 @@ typedef struct STRUCT_HANDLER_PARAMETER
 xInterruptHandlerDefinition pxInterruptHandlers[ portNUM_PROCESSORS ][ portMAX_VECTORS ] = { { NULL, NULL } };
 
 extern unsigned portBASE_TYPE * volatile pxCurrentTCB[ portNUM_PROCESSORS ];
+static volatile spinlock_t portYieldLock = {0,};
 
 // GIC Interrupt MAX Vector ID 
 static unsigned long ulMaxVectorId = portMAX_VECTORS;
@@ -143,6 +144,7 @@ void vPortInterruptContext( void )
 #endif
 #if 1
 	__asm volatile(
+			/*
 			" UART_SEND:	\n"
 			" ldr r1, =0x48020014	\n"
 			" ldr r2, [r1]	\n"
@@ -151,9 +153,9 @@ void vPortInterruptContext( void )
 			" beq UART_SEND	\n"
 			" ldr r1, =0x48020000	\n"
 			" mov r2, %[portCORE]	\n"
-			" add r2, r2, #48 \n"
+			" add r2, r2, #56 \n"
 			" str r2, [r1]	\n"
-
+*/
 			" sub lr, lr, #4				\n"		/* Adjust the return address. */
 			" srsdb SP, #31					\n"		/* Store the return address and SPSR to the Task's stack. */
 			" stmdb SP, {SP}^			 	\n"		/* Store the SP_USR to the stack. */
@@ -200,8 +202,10 @@ void vPortSMCHandler( void )
 
 void vPortYieldFromISR( void )
 {
+	//__spin_lock(&portYieldLock);
 	vTaskSwitchContext();
 	portSGI_CLEAR_YIELD( portGIC_DISTRIBUTOR_BASE, portCORE_ID() );
+	//__spin_lock(&portYieldLock);
 }
 /*-----------------------------------------------------------*/
 
@@ -211,8 +215,10 @@ void vPortYieldFromISR( void )
 portBASE_TYPE xPortStartScheduler( void )
 {
 	/* Start the timer that generates the tick ISR.  Interrupts are disabled here already. */
-	//prvSetupTimerInterrupt();
-
+#if 0
+	if(portCORE_ID()==1)
+		prvSetupTimerInterrupt();
+#endif
 	/* Install the interrupt handler. */
 	vPortInstallInterruptHandler( (void (*)(void *))vPortYieldFromISR, NULL, portSGI_YIELD_VECTOR_ID, pdTRUE, 
 			/* configMAX_SYSCALL_INTERRUPT_PRIORITY */ configKERNEL_INTERRUPT_PRIORITY, 1<<portCORE_ID() );
@@ -244,7 +250,7 @@ void vPortSysTickHandler( void *pvParameter )
 	/* Clear the Interrupt. */
 	*(portSYSTICK_INTERRUPT_STATUS) = 0x01UL;
 
-	vTaskIncrementTick();
+	vTaskIncrementTick(portCORE_ID());
 
 #if configUSE_PREEMPTION == 1
 	/* If using preemption, also force a context switch. */
@@ -313,13 +319,15 @@ unsigned long puxGICDistributorAddress = 0;
 	/* Record the Handler. */
 	if (ulVector < ulMaxVectorId )
 	{
-		pxInterruptHandlers[ ucProcessorTargets ][ ulVector ].vHandler = vHandler;
-		pxInterruptHandlers[ ucProcessorTargets ][ ulVector ].pvParameter = pvParameter;
+		pxInterruptHandlers[ portCORE_ID() ][ ulVector ].vHandler = vHandler;
+		pxInterruptHandlers[ portCORE_ID() ][ ulVector ].pvParameter = pvParameter;
 
 		/* Now calculate all of the offsets for the specific GIC. */
-		// BankX: 하나의 인터럽트는 (32/X)-bit만큼 공간을 사용한다. 4를 곱해준 이유는 주소체계가 4Byte단위이기 때문에(Register에선 31-0까지의 비트주소를 사용)
-		// OffsetX: Bank로 나눈 단위에서 OffsetX는 해당 인터럽트의 위치를 가리킨다.
-		// 그래서 BankX와 OffsetX를 세트로 사용한다.
+		/*
+		 * Cortex-A9 GIC
+		 * BankX: 하나의 인터럽트는 (32/X)-bit만큼 공간을 사용한다. 4를 곱해준 이유는 주소체계가 4Byte단위이기 때문에(Register에선 31-0까지의 비트주소를 사용)
+		 * OffsetX: Bank로 나눈 단위에서 OffsetX는 해당 인터럽트의 위치를 가리키고, BankX와 OffsetX를 세트로 사용
+		 */
 		ulBank32 = 4 * ( ulVector / 32 );
 		ulOffset32 = ulVector % 32;
 		ulBank4 = 4 * ( ulVector / 4 );
@@ -400,6 +408,9 @@ void vPortClearInterruptMask( portBASE_TYPE xPriorityMask )
 void vPortUnknownInterruptHandler( void *pvParameter )
 {
 	/* This is an unhandled interrupt, do nothing. */
+	char cAddress[30];
+	sprintf( cAddress, "Core-%d: call UnknownInterruptHandler\r\n", portCORE_ID() );
+	vSerialPutString((xComPortHandle)configUART_PORT,(const signed char * const)cAddress, strlen(cAddress) );
 	(void)pvParameter;
 }
 /*----------------------------------------------------------------------------*/
