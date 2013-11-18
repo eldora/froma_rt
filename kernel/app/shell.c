@@ -13,6 +13,7 @@ struct shellCommandEntry gsCommandTable[] = {
 	{"clear", "Clear Screen.", vClear},
 	{"state", "View Tasks State.", vTaskState},
 	{"prime", "Search Prime Number.", vPrime},
+	{"primeSMP", "Search Prime Number.", vPrimeSMP},
 };
 
 void vShellTask( void *pvParameters ){
@@ -98,7 +99,7 @@ void vClear(const char *pcParameterBuffer){
 
 void vVersion(const char *pcParameterBuffer){
 	portCHAR cTempBuffer[50];
-	portCHAR *pcVersion = "1.04";
+	portCHAR *pcVersion = "2.00";
 
 	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"Distributor ID:\tFROMA\r\n", strlen("Distributor ID:\tFROMA\r\n"));
 	sprintf(cTempBuffer, "Description:\tFROMA %s SMP Supported\r\n", pcVersion);
@@ -108,11 +109,34 @@ void vVersion(const char *pcParameterBuffer){
 	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"Codename:\trudder\r\n", strlen("Codename:\trudder\r\n"));
 }
 
-void vPrime(const char *pcParameterBuffer){
-	char cTempBuffer[30];
-	extern xTaskHandle xPrimeTaskHandle;
+void vPrimeSMP(const char *pcParameterBuffer){
+#if 0
+	portCHAR cTempBuffer[30];
+	portCHAR ch, type;
+	portINT index;
+	type = (portCHAR)index = 0;
+	while(ch=pcParameterBuffer[index++]){	
+		switch(ch){
+			case '2': type = 1; break;
+			default: break;
+		}
+	}
+#endif
+	// if type == 1 then execute SMP prime task, else then execute UP prime task
+	if(pdTRUE){
+		vTaskSuspend(xPrimeTaskHandle, PRIMARY_CPU_ID);
+		vTaskSuspend(xIDLE1TaskHandle, SECONDARY_CPU_ID);
+		vTaskSuspend(xShellTaskHandle, PRIMARY_CPU_ID);
+		vTaskResume(xPrimeTaskHandle, PRIMARY_CPU_ID);
+	}
+#if 0
+	else{
+		vTaskSuspend(xShellTaskHandle, PRIMARY_CPU_ID);
+	}
+#endif
+}
 
-	vTaskSuspend(xIDLE1TaskHandle, SECONDARY_CPU_ID);
+void vPrime(const char *pcParameterBuffer){
 	vTaskSuspend(xShellTaskHandle, PRIMARY_CPU_ID);
 }
 
@@ -122,7 +146,7 @@ void vTaskState(const char *pcParameterBuffer){
 
 	xNumberOfTasks = uxTaskGetNumberOfTasks();
 
-	sprintf(cTempBuffer, "pxCurruent_0: %s\t pxCurruent_1: %s\r\n", pxCurrentTCB[0]->pcTaskName, pxCurrentTCB[1]->pcTaskName);
+	sprintf(cTempBuffer, "CPU[0] pxTCB: %s\t CPU[1] pxTCB: %s\r\n", pxCurrentTCB[0]->pcTaskName, pxCurrentTCB[1]->pcTaskName);
 	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)cTempBuffer, strlen(cTempBuffer));
 
 	sprintf(cTempBuffer, "Number Of Tasks: %u\r\n", (unsigned int)xNumberOfTasks);

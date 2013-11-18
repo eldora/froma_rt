@@ -5,6 +5,7 @@ void vShellTask(void *pvParameters);
 void vHelp(const char *pcParameterBuffer);
 void vClear(const char *pcParameterBuffer);
 void vVersion(const char *pcParameterBuffer);
+void vPrimeSMP(const char *pcParameterBuffer);
 void vPrime(const char *pcParameterBuffer);
 void vTaskState(const char *pcParameterBuffer);
 void vExecuteCommand(const char *pcCommandBuffer);

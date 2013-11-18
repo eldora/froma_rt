@@ -15,11 +15,7 @@ int secondary_main( void )
 	int num = 100000;
 	char cAddress[20];
 	extern void prvIdleTask( void *pvParameters );
-	xPRIME xPrimeCPU1;
-
-	xPrimeCPU1.start = 2;
-	xPrimeCPU1.end = 200000;
-	xPrimeCPU1.core = SECONDARY_CPU_ID;
+	xPRIME xPrimeM1 = {2, 50000};
 
 	/* waiting init Core0 */
 	while(xCoreStart_0 == pdFALSE)
@@ -43,8 +39,8 @@ int secondary_main( void )
 	vSerialPutString((xComPortHandle)configUART_PORT,(const signed char * const)cAddress, strlen(cAddress) );
 #endif
 
-	xTaskCreate( vPrimeTask, (const signed char *)"Prime1", configMINIMAL_STACK_SIZE, &xPrimeCPU1, mainCHECK_TASK_PRIORITY-1, &xPrimeTaskHandle );
-	xTaskCreate( prvIdleTask, ( signed char * ) "IDLE1", tskIDLE_STACK_SIZE, ( void * ) NULL, mainCHECK_TASK_PRIORITY, &xIDLE1TaskHandle );
+	xTaskCreate( vPrimeTaskSMP, (const signed char *)"PrimeM1", configMINIMAL_STACK_SIZE, &xPrimeM1, mainCHECK_TASK_PRIORITY-1, NULL );
+	xTaskCreate( prvIdleTask, ( signed char * ) "IDLE1", tskIDLE_STACK_SIZE, ( void * ) NULL, mainCHECK_TASK_PRIORITY+1, &xIDLE1TaskHandle );
 	//xTaskCreate( vUARTEchoTask, (const signed char *)"UART", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, &xIDLE1TaskHandle );
 	//vTaskSuspend(xPrimeTaskHandle);
 
@@ -66,11 +62,8 @@ int main( void )
 {
 	int num = 100000;
 	char cAddress[50];
-	xPRIME xPrimeCPU0;
-
-	xPrimeCPU0.start = 2;
-	xPrimeCPU0.end = 100000;
-	xPrimeCPU0.core = PRIMARY_CPU_ID;
+	xPRIME xPrimeU0 = {2, 100000};
+	xPRIME xPrimeM0 = {2, 50000};
 
 #if 0
 	sprintf( cAddress, "0 shared:%d\t", sharedValue );
@@ -90,9 +83,10 @@ int main( void )
 
 	/* Start the tasks defined within the file. */
 	//xTaskCreate( vCheckTask, (const signed char *)"Check", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, NULL );
-	xTaskCreate( vPrimeTask, (const signed char *)"Prime0", configMINIMAL_STACK_SIZE, &xPrimeCPU0, mainCHECK_TASK_PRIORITY-2, &xPrimeTaskHandle );
+	xTaskCreate( vPrimeTaskSMP, (const signed char *)"PrimeM0", configMINIMAL_STACK_SIZE, &xPrimeM0, mainCHECK_TASK_PRIORITY-2, NULL );
+	xTaskCreate( vPrimeTask, (const signed char *)"PrimeU0", configMINIMAL_STACK_SIZE, &xPrimeU0, mainCHECK_TASK_PRIORITY, &xPrimeTaskHandle );
 	//xTaskCreate( vUARTEchoTask, (const signed char *)"EchoTask", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, NULL );
-	xTaskCreate( vShellTask, (const signed char *)"Shell", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY+1, &xShellTaskHandle);
+	xTaskCreate( vShellTask, (const signed char *)"Shell", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY+2, &xShellTaskHandle);
 
 #if 0
 	sprintf(cAddress, "\r\nmain Shell: %s, %s\r\n", ((tskTCB*)xShellTaskHandle)->pcTaskName, ((tskTCB*)xPrimeTaskHandle)->pcTaskName);

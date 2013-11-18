@@ -76,6 +76,7 @@ extern "C" {
 #define portFLOAT		float
 #define portDOUBLE		double
 #define portLONG		long
+#define portINT			int
 #define portSHORT		short
 #define portSTACK_TYPE	unsigned portLONG
 #define portBASE_TYPE	long

@@ -4,12 +4,11 @@
 typedef struct{
 	int start;
 	int end;
-	int core;
 }xPRIME;
 
 /*  */
+void vPrimeTaskSMP(void *pvParameters);
 void vPrimeTask(void *pvParameters);
-void vPrimeTask_2(void *pvParameters);
 void vUARTEchoTask(void *pvParameters);
 
 /* Periodically checks to see whether the demo tasks are still running. */
