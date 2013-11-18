@@ -44,15 +44,17 @@ int secondary_main( void )
 #endif
 
 	xTaskCreate( vPrimeTask, (const signed char *)"Prime_CPU1", configMINIMAL_STACK_SIZE, &xPrimeCPU1, mainCHECK_TASK_PRIORITY-1, &xPrimeTaskHandle );
-	//xTaskCreate( prvIdleTask, ( signed char * ) "IDLE1", tskIDLE_STACK_SIZE, ( void * ) NULL, mainCHECK_TASK_PRIORITY-1, &xIDLE1TaskHandle );
-	xTaskCreate( vUARTEchoTask, (const signed char *)"UART", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, &xIDLE1TaskHandle );
+	xTaskCreate( prvIdleTask, ( signed char * ) "IDLE1", tskIDLE_STACK_SIZE, ( void * ) NULL, mainCHECK_TASK_PRIORITY, &xIDLE1TaskHandle );
+	//xTaskCreate( vUARTEchoTask, (const signed char *)"UART", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, &xIDLE1TaskHandle );
 	//vTaskSuspend(xPrimeTaskHandle);
 
 	/* init & create Task Core1 END */
 	__asm volatile( "dsb" ::: "memory" );
 	xCoreStart_1 = pdTRUE;
 
-	xPortStartScheduler();
+	//xPortStartScheduler();
+	vPortStartFirstTask();
+	//while(pdTRUE);
 
 	/* Should never reach here. */
 	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"Should never reach here!\r\n", 26 );
@@ -88,7 +90,7 @@ int main( void )
 
 	/* Start the tasks defined within the file. */
 	//xTaskCreate( vCheckTask, (const signed char *)"Check", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, NULL );
-	//xTaskCreate( vPrimeTask, (const signed char *)"Prime_CPU0", configMINIMAL_STACK_SIZE, &xPrimeCPU0, mainCHECK_TASK_PRIORITY-1, &xPrimeTaskHandle );
+	xTaskCreate( vPrimeTask, (const signed char *)"Prime_CPU0", configMINIMAL_STACK_SIZE, &xPrimeCPU0, mainCHECK_TASK_PRIORITY-1, &xPrimeTaskHandle );
 	//xTaskCreate( vUARTEchoTask, (const signed char *)"EchoTask", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, NULL );
 	xTaskCreate( vShellTask, (const signed char *)"Shell", configMINIMAL_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY+1, &xShellTaskHandle);
 
@@ -134,10 +136,6 @@ void vApplicationIdleHook( void )
 static void prvSetupHardware( void )
 {
 	unsigned long ulVector = 0UL;
-	unsigned long currentCORE_ID = 0UL;
-	//char cAddress[32];
-
-	currentCORE_ID = portCORE_ID();
 
 	portDISABLE_INTERRUPTS();
 
@@ -146,12 +144,13 @@ static void prvSetupHardware( void )
 	extern void vPortInstallInterruptHandler( void (*vHandler)(void *), void *pvParameter, unsigned long ulVector, 
 			unsigned char ucEdgeTriggered, unsigned char ucPriority, unsigned char ucProcessorTargets );
 	for ( ulVector = 0; ulVector < portMAX_VECTORS; ulVector++ )
-		vPortInstallInterruptHandler( vPortUnknownInterruptHandler, (void *)ulVector, ulVector, pdTRUE, configMAX_SYSCALL_INTERRUPT_PRIORITY, 1 );
+		vPortInstallInterruptHandler( vPortUnknownInterruptHandler, (void *)ulVector, ulVector, pdTRUE, configMAX_SYSCALL_INTERRUPT_PRIORITY, portCORE_ID() );
 
+#if 0
 	extern void vUARTInitialise(unsigned long ulUARTPeripheral, unsigned long ulBaud, unsigned long ulQueueSize );
-	if(currentCORE_ID==PRIMARY_CPU_ID)
+	if(portCORE_ID()==PRIMARY_CPU_ID)
 		vUARTInitialise( mainPRINT_PORT, mainPRINT_BAUDRATE, 64 );
-
+#endif
 	/* Perform any other peripheral configuration. */
 }
 /*----------------------------------------------------------------------------*/

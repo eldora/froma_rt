@@ -113,7 +113,8 @@ void vPrime(const char *pcParameterBuffer){
 
 	//vTaskResume(xPrimeTaskHandle);
 	vTaskSuspend(xIDLE1TaskHandle, SECONDARY_CPU_ID);
-	//vTaskState(NULL);
+	vTaskSuspend(xShellTaskHandle, PRIMARY_CPU_ID);
+	vTaskState(NULL);
 	//vTaskSuspend(xShellTaskHandle);
 }
 

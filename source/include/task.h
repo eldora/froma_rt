@@ -132,7 +132,7 @@ typedef struct tskTaskControlBlock
 	#endif
 
 	// Current Operating Core ID
-	unsigned portBASE_TYPE uxCoreID;
+	//unsigned portBASE_TYPE uxCoreID;
 
 }tskTCB;
 

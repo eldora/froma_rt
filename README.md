@@ -20,6 +20,14 @@
 - 문제: prime을 실행시켰을 시 CPU1에서 pxTCB는 제대로 설정되었는데 실행이 안된다. tasks.c:vTaskSuspend부분부터 해석 portYIELD_WITHIN_API_CORE(xCoreID)
 + 이유: xTaskCreate시에 xTaskHandle 변수의 주소값을 넘겨줬어야 했다.
 
+#### v1.8(20131118) ####
+- abort panic 발생 이유 찾아보기
+- port.c: v1.7에서 변경안해준 vPortInterruptContext를 변경
+- handler, tickCount를 portNUM_PROCESSORS 수로 수정
+- secondary_main 함수에서 xPortStartScheduler를 vPortStartFirstTask로 수정하니 core-1에서 aboart panic이 발생하지 않음: 추측컨데 타이머 인터럽트는 한번만 설정하면 각 코어별로 동작하나?, 아니다 원인은 prvSetupTimerInterrupt()에 있었다. FirstTask로 바꿔서 core1에서 prvSetupTimerInterrupt()가 설정되지 않았고 아래에서 ucProcessorTargets인자가 1로 되어있어서 타이머 클럭 인터럽트가 발생하지 않아 abort panic이 일어나지 않았던 것
+- clockInterrupt 멈춘 이유: pxInterruptHandlers에서 [ portCORE_ID() ]->[ ucProcessorTargets ]이유 -> main.c:151에서 ucProcessorTargets인자가 1로 되어 있었다. 이를 portCORE_ID로 변경
+- prvSetupTimerInterrupt()를 주석처리하고 임시저장, 현재 타이머인터럽트가 일제히 동작안하는 상태에서 쉘상에서 태스크들의 컨택스트 스위칭은 잘 일어난다.
+
 #### 해야할 것 ####
 - Create Prime1, 2 생성 및 Shell에서 명령을 줬을 때 동작 후 ready task로 이동
 - spinlock에서 변수 확인할 때 release 후 0이 안된 것을 확인했는데 이것이 바로 0이 되게 고쳐야 함

@@ -11,12 +11,12 @@ void vPrimeTask( void *pvParameters ){
 	portTickType xLastExecutionTime;
 	xPRIME xEachPrime;
 
+#if 1
 	xEachPrime = *((xPRIME*)pvParameters);
 	start = xEachPrime.start;
 	end = xEachPrime.end;
 	core = xEachPrime.core;
-
-	(void)xSerialPutChar( (xComPortHandle)mainPRINT_PORT, '!', portMAX_DELAY );
+#endif
 
 	for(;;){
 		//if(!xPrimeTaskStart)
@@ -48,7 +48,7 @@ void vPrimeTask( void *pvParameters ){
 		if(core==PRIMARY_CPU_ID)
 			vTaskResume(xShellTaskHandle, core);
 
-		if(core==SECONDARY_CPU_ID);
+		if(core==SECONDARY_CPU_ID)
 			vTaskResume(xIDLE1TaskHandle, core);
 			//vTaskSuspend(NULL);
 	}

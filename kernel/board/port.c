@@ -15,7 +15,7 @@ typedef struct STRUCT_HANDLER_PARAMETER
 	void (*vHandler)(void *);
     void *pvParameter;
 } xInterruptHandlerDefinition;
-xInterruptHandlerDefinition pxInterruptHandlers[ portMAX_VECTORS ] = { { NULL, NULL } };
+xInterruptHandlerDefinition pxInterruptHandlers[ portNUM_PROCESSORS ][ portMAX_VECTORS ] = { { NULL, NULL } };
 
 extern unsigned portBASE_TYPE * volatile pxCurrentTCB[ portNUM_PROCESSORS ];
 
@@ -116,7 +116,44 @@ void vPortSVCHandler( void )
 
 void vPortInterruptContext( void )
 {
+	volatile unsigned int currentCORE_ID = portCORE_ID();
+#if 0
+	volatile tskTCB * pxTCBAddr;
+	char cAddress[50];
 	__asm volatile(
+			" ldr r9, pxCurrentTCBConst2	\n"		/* Load the pxCurrentTCB pointer address. */
+			" ldr r8, [r9, %[portCORE], lsl #2]								\n"		// Load pxCurrentTCB Address 
+			" UART_SEND:	\n"
+			" ldr r1, =0x48020014	\n"
+			" ldr r2, [r1]	\n"
+			" and	r2, r2, #0x20	\n"
+			" cmp r2, #0x00	\n"
+			" beq UART_SEND	\n"
+			" ldr r1, =0x48020000	\n"
+//			" mov r2, r8	\n"
+			" mov r2, %[portCORE]	\n"
+			" add r2, r2, #48 \n"
+			" mov %[saveAddr], r8	\n"
+			" str r2, [r1]	\n"
+			: [saveAddr] "=r" (pxTCBAddr)  : [portCORE] "r" (currentCORE_ID) : "memory"
+			);
+
+	//sprintf(cAddress, "\r\n Core%d: %s\r\n", currentCORE_ID, ((tskTCB*)pxTCBAddr)->pcTaskName);
+	//vSerialPutString( (xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
+#endif
+#if 1
+	__asm volatile(
+			" UART_SEND:	\n"
+			" ldr r1, =0x48020014	\n"
+			" ldr r2, [r1]	\n"
+			" and	r2, r2, #0x20	\n"
+			" cmp r2, #0x00	\n"
+			" beq UART_SEND	\n"
+			" ldr r1, =0x48020000	\n"
+			" mov r2, %[portCORE]	\n"
+			" add r2, r2, #48 \n"
+			" str r2, [r1]	\n"
+
 			" sub lr, lr, #4				\n"		/* Adjust the return address. */
 			" srsdb SP, #31					\n"		/* Store the return address and SPSR to the Task's stack. */
 			" stmdb SP, {SP}^			 	\n"		/* Store the SP_USR to the stack. */
@@ -126,17 +163,20 @@ void vPortInterruptContext( void )
 			" stmdb LR, {r0-lr}^ 		\n"		/* Store the Task's registers. */
 			" sub LR, LR, #60		 		\n"		/* Adjust the Task's stack pointer. */
 			" ldr r9, pxCurrentTCBConst2	\n"		/* Load the pxCurrentTCB pointer address. */
-			" ldr r8, [r9]					\n"		/* Load the pxCurrentTCB address. */
-			//" ldr r8, [r9, %[portCORE], lsl #2]								\n"		// Load pxCurrentTCB Address 
+//			" ldr r8, [r9]					\n"		/* Load the pxCurrentTCB address. */
+			" ldr r8, [r9, %[portCORE], lsl #2]								\n"		// Load pxCurrentTCB Address 
 			" str lr, [r8]	 				\n"		/* Store the Task stack pointer to the TCB. */
 			" bl vPortGICInterruptHandler	\n"		/* Branch and link to find specific service handler. */
-			" ldr r8, [r9]					\n"		/* Load the pxCurrentTCB address. */
+//			" ldr r8, [r9]					\n"		/* Load the pxCurrentTCB address. */
+			" ldr r8, [r9, %[portCORE], lsl #2]								\n"		// Load pxCurrentTCB Address 
 			" ldr lr, [r8]					\n"		/* Load the Task Stack Pointer into LR. */
 			" ldmia lr, {r0-lr}^	 	\n"		/* Load the Task's registers. */
 			" add lr, lr, #60			 	\n"		/* Re-adjust the stack for the Task Context */
 			" rfeia lr				 			\n"		/* Return from exception by loading the PC and CPSR from Task Stack. */
 			" nop						 				\n"
+			: : [portCORE] "r" (currentCORE_ID) : "memory"
 			);
+#endif
 }
 /*-----------------------------------------------------------*/
 
@@ -171,7 +211,7 @@ void vPortYieldFromISR( void )
 portBASE_TYPE xPortStartScheduler( void )
 {
 	/* Start the timer that generates the tick ISR.  Interrupts are disabled here already. */
-	prvSetupTimerInterrupt();
+	//prvSetupTimerInterrupt();
 
 	/* Install the interrupt handler. */
 	vPortInstallInterruptHandler( (void (*)(void *))vPortYieldFromISR, NULL, portSGI_YIELD_VECTOR_ID, pdTRUE, 
@@ -273,8 +313,8 @@ unsigned long puxGICDistributorAddress = 0;
 	/* Record the Handler. */
 	if (ulVector < ulMaxVectorId )
 	{
-		pxInterruptHandlers[ ulVector ].vHandler = vHandler;
-		pxInterruptHandlers[ ulVector ].pvParameter = pvParameter;
+		pxInterruptHandlers[ ucProcessorTargets ][ ulVector ].vHandler = vHandler;
+		pxInterruptHandlers[ ucProcessorTargets ][ ulVector ].pvParameter = pvParameter;
 
 		/* Now calculate all of the offsets for the specific GIC. */
 		// BankX: 하나의 인터럽트는 (32/X)-bit만큼 공간을 사용한다. 4를 곱해준 이유는 주소체계가 4Byte단위이기 때문에(Register에선 31-0까지의 비트주소를 사용)
@@ -329,10 +369,10 @@ unsigned long ulGICBaseAddress = portGIC_PRIVATE_BASE;
 	/* Query the private address first. */
 	ulVector = portGIC_READ( portGIC_ICCIAR(portGIC_PRIVATE_BASE) );
 
-	if ( ( ( ulVector & portGIC_VECTOR_MASK ) < ulMaxVectorId ) && ( NULL != pxInterruptHandlers[ ( ulVector & portGIC_VECTOR_MASK ) ].vHandler ) )
+	if ( ( ( ulVector & portGIC_VECTOR_MASK ) < ulMaxVectorId ) && ( NULL != pxInterruptHandlers[ portCORE_ID() ][ ( ulVector & portGIC_VECTOR_MASK ) ].vHandler ) )
 	{
 		/* Call the associated handler. */
-		pxInterruptHandlers[ ( ulVector & portGIC_VECTOR_MASK ) ].vHandler( pxInterruptHandlers[ ( ulVector & portGIC_VECTOR_MASK ) ].pvParameter );
+		pxInterruptHandlers[ portCORE_ID() ][ ( ulVector & portGIC_VECTOR_MASK ) ].vHandler( pxInterruptHandlers[ portCORE_ID() ][ ( ulVector & portGIC_VECTOR_MASK ) ].pvParameter );
 		/* And acknowledge the interrupt. */
 		portGIC_WRITE( portGIC_ICCEOIR(ulGICBaseAddress), ulVector );
 	}
@@ -513,7 +553,11 @@ vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"pre
 
 void Abort_Handler_Panic( void )
 {
-vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"abort_panic\r\n", strlen("abort_panic\r\n"));
+	char cAddress[30];
+	sprintf( cAddress, "Core-%d: abort_panic\r\n", portCORE_ID() );
+	vSerialPutString((xComPortHandle)configUART_PORT,(const signed char * const)cAddress, strlen(cAddress) );
+	//vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"abort_panic\r\n", strlen("abort_panic\r\n"));
+
 //	__asm volatile ( " smc #8 " );
 	for (;;);
 }

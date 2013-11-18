@@ -71,6 +71,7 @@ task.h is included from an application file. */
 #include "task.h"
 #include "timers.h"
 #include "StackMacros.h"
+#include "spinlock.h"
 
 #undef MPU_WRAPPERS_INCLUDED_FROM_API_FILE
 
@@ -142,7 +143,7 @@ extern void vSerialPutString( xComPortHandle pxPort, const signed char * const p
 /*lint -e956 */
 //PRIVILEGED_DATA tskTCB * volatile pxCurrentTCB = NULL;
 //PRIVILEGED_DATA tskTCB * volatile pxCurrentTCB1 = NULL;
-PRIVILEGED_DATA tskTCB * volatile pxCurrentTCB[portNUM_PROCESSORS];				//TAG:AJH
+PRIVILEGED_DATA	 tskTCB * volatile pxCurrentTCB[portNUM_PROCESSORS];				//TAG:AJH
 
 /* Lists for ready and blocked tasks. --------------------*/
 
@@ -168,7 +169,7 @@ PRIVILEGED_DATA static xList xPendingReadyList;							/*< Tasks that have been r
 
 /* File private variables. --------------------------------*/
 PRIVILEGED_DATA static volatile unsigned portBASE_TYPE uxCurrentNumberOfTasks 	= ( unsigned portBASE_TYPE ) 0;
-PRIVILEGED_DATA static volatile portTickType xTickCount 						= ( portTickType ) 0;
+PRIVILEGED_DATA static volatile portTickType xTickCount[ portNUM_PROCESSORS ];
 PRIVILEGED_DATA static unsigned portBASE_TYPE uxTopUsedPriority	 				= tskIDLE_PRIORITY;
 PRIVILEGED_DATA static volatile unsigned portBASE_TYPE uxTopReadyPriority[ portNUM_PROCESSORS ];
 PRIVILEGED_DATA static volatile signed portBASE_TYPE xSchedulerRunning 			= pdFALSE;
@@ -237,7 +238,7 @@ PRIVILEGED_DATA static portTickType xNextTaskUnblockTime						= ( portTickType )
 				if( ( pcTraceBuffer + tskSIZE_OF_EACH_TRACE_LINE ) < pcTraceBufferEnd )				\
 				{																					\
 					uxPreviousTask = pxCurrentTCB[ portCORE_ID() ]->uxTCBNumber;										\
-					*( unsigned long * ) pcTraceBuffer = ( unsigned long ) xTickCount;				\
+					*( unsigned long * ) pcTraceBuffer = ( unsigned long ) xTickCount[ portCORE_ID() ];				\
 					pcTraceBuffer += sizeof( unsigned long );										\
 					*( unsigned long * ) pcTraceBuffer = ( unsigned long ) uxPreviousTask;			\
 					pcTraceBuffer += sizeof( unsigned long );										\
@@ -272,6 +273,14 @@ PRIVILEGED_DATA static portTickType xNextTaskUnblockTime						= ( portTickType )
 	vListInsertEnd( ( xList * ) &( pxReadyTasksLists[ ( pxTCB )->uxPriority ] ), &( ( pxTCB )->xGenericListItem ) )
 /*-----------------------------------------------------------*/
 
+#define prvAddTaskToReadyQueueCore( pxTCB, xCoreID )																					\
+	if( ( pxTCB )->uxPriority > uxTopReadyPriority[ xCoreID ] )																	\
+	{																													\
+		uxTopReadyPriority[ xCoreID ] = ( pxTCB )->uxPriority;																		\
+	}																													\
+	vListInsertEnd( ( xList * ) &( pxReadyTasksLists[ ( pxTCB )->uxPriority ] ), &( ( pxTCB )->xGenericListItem ) )
+/*-----------------------------------------------------------*/
+
 /*
  * Macro that looks at the list of tasks that are currently delayed to see if
  * any require waking.
@@ -286,7 +295,7 @@ portTickType xItemValue;																\
 																						\
 	/* Is the tick count greater than or equal to the wake time of the first			\
 	task referenced from the delayed tasks list? */										\
-	if( xTickCount >= xNextTaskUnblockTime )											\
+	if( xTickCount[ portCORE_ID() ] >= xNextTaskUnblockTime )											\
 	{																					\
 		for( ;; )																		\
 		{																				\
@@ -294,7 +303,7 @@ portTickType xItemValue;																\
 			{																			\
 				/* The delayed list is empty.  Set xNextTaskUnblockTime to the			\
 				maximum possible value so it is extremely unlikely that the				\
-				if( xTickCount >= xNextTaskUnblockTime ) test will pass next			\
+				if( xTickCount[ portCORE_ID() ] >= xNextTaskUnblockTime ) test will pass next			\
 				time through. */														\
 				xNextTaskUnblockTime = portMAX_DELAY;									\
 				break;																	\
@@ -308,7 +317,7 @@ portTickType xItemValue;																\
 				pxTCB = ( tskTCB * ) listGET_OWNER_OF_HEAD_ENTRY( pxDelayedTaskList );	\
 				xItemValue = listGET_LIST_ITEM_VALUE( &( pxTCB->xGenericListItem ) );	\
 																						\
-				if( xTickCount < xItemValue )											\
+				if( xTickCount[ portCORE_ID() ] < xItemValue )											\
 				{																		\
 					/* It is not time to unblock this item yet, but the item			\
 					value is the time at which the task at the head of the				\
@@ -682,14 +691,14 @@ tskTCB * pxNewTCB;
 			/* Generate the tick time at which the task wants to wake. */
 			xTimeToWake = *pxPreviousWakeTime + xTimeIncrement;
 
-			if( xTickCount < *pxPreviousWakeTime )
+			if( xTickCount[ portCORE_ID() ] < *pxPreviousWakeTime )
 			{
 				/* The tick count has overflowed since this function was
 				lasted called.  In this case the only time we should ever
 				actually delay is if the wake time has also	overflowed,
 				and the wake time is greater than the tick time.  When this
 				is the case it is as if neither time had overflowed. */
-				if( ( xTimeToWake < *pxPreviousWakeTime ) && ( xTimeToWake > xTickCount ) )
+				if( ( xTimeToWake < *pxPreviousWakeTime ) && ( xTimeToWake > xTickCount[ portCORE_ID() ] ) )
 				{
 					xShouldDelay = pdTRUE;
 				}
@@ -699,7 +708,7 @@ tskTCB * pxNewTCB;
 				/* The tick time has not overflowed.  In this case we will
 				delay if either the wake time has overflowed, and/or the
 				tick time is less than the wake time. */
-				if( ( xTimeToWake < *pxPreviousWakeTime ) || ( xTimeToWake > xTickCount ) )
+				if( ( xTimeToWake < *pxPreviousWakeTime ) || ( xTimeToWake > xTickCount[ portCORE_ID() ] ) )
 				{
 					xShouldDelay = pdTRUE;
 				}
@@ -756,7 +765,7 @@ tskTCB * pxNewTCB;
 
 				/* Calculate the time to wake - this may overflow but this is
 				not a problem. */
-				xTimeToWake = xTickCount + xTicksToDelay;
+				xTimeToWake = xTickCount[ portCORE_ID() ] + xTicksToDelay;
 
 				/* We must remove ourselves from the ready list before adding
 				ourselves to the blocked list as the same list item is used for
@@ -1030,6 +1039,7 @@ tskTCB * pxNewTCB;
 	void vTaskResume( xTaskHandle pxTaskToResume, int xCoreID )
 	{
 	tskTCB *pxTCB;
+	char cAddress[50];
 
 		/* It does not make sense to resume the calling task. */
 		configASSERT( pxTaskToResume );
@@ -1038,24 +1048,30 @@ tskTCB * pxNewTCB;
 		it in the ready list. */
 		pxTCB = ( tskTCB * ) pxTaskToResume;
 
+		sprintf(cAddress, "\r\nResume: %s, %s\r\n", ((tskTCB*)pxTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[xCoreID])->pcTaskName);
+		vSerialPutString( (xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
+		vSerialPutString((xComPortHandle)2, (const signed char * const)"1\r\n", 4 );
 		/* The parameter cannot be NULL as it is impossible to resume the
 		currently executing task. */
 		if( ( pxTCB != NULL ) && ( pxTCB != pxCurrentTCB[ xCoreID ] ) )
 		{
+		vSerialPutString((xComPortHandle)2, (const signed char * const)"2\r\n", 4 );
 			taskENTER_CRITICAL();
 			{
 				if( xTaskIsTaskSuspended( pxTCB ) == pdTRUE )
 				{
+		vSerialPutString((xComPortHandle)2, (const signed char * const)"3\r\n", 4 );
 					traceTASK_RESUME( pxTCB );
 
 					/* As we are in a critical section we can access the ready
 					lists even if the scheduler is suspended. */
 					vListRemove(  &( pxTCB->xGenericListItem ) );
-					prvAddTaskToReadyQueue( pxTCB );
+					prvAddTaskToReadyQueueCore( pxTCB, xCoreID );
 
 					/* We may have just resumed a higher priority task. */
 					if( pxTCB->uxPriority >= pxCurrentTCB[ xCoreID ]->uxPriority )
 					{
+		vSerialPutString((xComPortHandle)2, (const signed char * const)"4\r\n", 4 );
 						/* This yield may not cause the task just resumed to run, but
 						will leave the lists in the correct state for the next yield. */
 						portYIELD_WITHIN_API();
@@ -1143,7 +1159,7 @@ void vTaskStartScheduler( void )
 		portDISABLE_INTERRUPTS();
 
 		xSchedulerRunning = pdTRUE;
-		xTickCount = ( portTickType ) 0;
+		xTickCount[ portCORE_ID() ] = ( portTickType ) 0;
 
 		/* If configGENERATE_RUN_TIME_STATS is defined then the following
 		macro must be defined to configure the timer/counter used to generate
@@ -1281,7 +1297,7 @@ portTickType xTicks;
 	/* Critical section required if running on a 16 bit processor. */
 	taskENTER_CRITICAL();
 	{
-		xTicks = xTickCount;
+		xTicks = xTickCount[ portCORE_ID() ];
 	}
 	taskEXIT_CRITICAL();
 
@@ -1295,7 +1311,7 @@ portTickType xReturn;
 unsigned portBASE_TYPE uxSavedInterruptStatus;
 
 	uxSavedInterruptStatus = portSET_INTERRUPT_MASK_FROM_ISR();
-	xReturn = xTickCount;
+	xReturn = xTickCount[ portCORE_ID() ];
 	portCLEAR_INTERRUPT_MASK_FROM_ISR( uxSavedInterruptStatus );
 
 	return xReturn;
@@ -1503,8 +1519,8 @@ tskTCB * pxTCB;
 	tasks to be unblocked. */
 	if( uxSchedulerSuspended == ( unsigned portBASE_TYPE ) pdFALSE )
 	{
-		++xTickCount;
-		if( xTickCount == ( portTickType ) 0 )
+		++xTickCount[ portCORE_ID() ];
+		if( xTickCount[ portCORE_ID() ] == ( portTickType ) 0 )
 		{
 			xList *pxTemp;
 
@@ -1523,7 +1539,7 @@ tskTCB * pxTCB;
 				/* The new current delayed list is empty.  Set 
 				xNextTaskUnblockTime to the maximum possible value so it is 
 				extremely unlikely that the	
-				if( xTickCount >= xNextTaskUnblockTime ) test will pass until 
+				if( xTickCount[ portCORE_ID() ] >= xNextTaskUnblockTime ) test will pass until 
 				there is an item in the delayed list. */
 				xNextTaskUnblockTime = portMAX_DELAY;
 			}
@@ -1565,7 +1581,7 @@ tskTCB * pxTCB;
 	}
 	#endif
 
-	traceTASK_INCREMENT_TICK( xTickCount );
+	traceTASK_INCREMENT_TICK( xTickCount[ portCORE_ID() ] );
 }
 /*-----------------------------------------------------------*/
 
@@ -1712,6 +1728,8 @@ tskTCB * pxTCB;
 void vTaskSwitchContext( void )
 {
 	tskTCB * volatile pxTempTCB;
+	char cAddress[50];
+
 	if( uxSchedulerSuspended != ( unsigned portBASE_TYPE ) pdFALSE )
 	{
 		/* The scheduler is currently suspended - do not allow a context
@@ -1765,6 +1783,9 @@ void vTaskSwitchContext( void )
 		if(pxTempTCB == pxCurrentTCB[ CORE_ID_REVERSE_MASK(portCORE_ID()) ])
 			listGET_OWNER_OF_NEXT_ENTRY( pxTempTCB, &( pxReadyTasksLists[ uxTopReadyPriority[ portCORE_ID() ] ] ) ); 
 
+	sprintf(cAddress, "\r\nSwitch: %s, %s\r\n", ((tskTCB*)pxTempTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[portCORE_ID()])->pcTaskName);
+	vSerialPutString((xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
+
 		pxCurrentTCB[ portCORE_ID() ] = pxTempTCB;
 
 		traceTASK_SWITCHED_IN();
@@ -1806,7 +1827,7 @@ portTickType xTimeToWake;
 		{
 			/* Calculate the time at which the task should be woken if the event does
 			not occur.  This may overflow but this doesn't matter. */
-			xTimeToWake = xTickCount + xTicksToWait;
+			xTimeToWake = xTickCount[ portCORE_ID() ] + xTicksToWait;
 			prvAddCurrentTaskToDelayedList( xTimeToWake );
 		}
 	}
@@ -1814,7 +1835,7 @@ portTickType xTimeToWake;
 	{
 			/* Calculate the time at which the task should be woken if the event does
 			not occur.  This may overflow but this doesn't matter. */
-			xTimeToWake = xTickCount + xTicksToWait;
+			xTimeToWake = xTickCount[ portCORE_ID() ] + xTicksToWait;
 			prvAddCurrentTaskToDelayedList( xTimeToWake );
 	}
 	#endif
@@ -1848,7 +1869,7 @@ portTickType xTimeToWake;
 
 		/* Calculate the time at which the task should be woken if the event does
 		not occur.  This may overflow but this doesn't matter. */
-		xTimeToWake = xTickCount + xTicksToWait;
+		xTimeToWake = xTickCount[ portCORE_ID() ] + xTicksToWait;
 		prvAddCurrentTaskToDelayedList( xTimeToWake );
 	}
 	
@@ -1910,7 +1931,7 @@ void vTaskSetTimeOutState( xTimeOutType * const pxTimeOut )
 {
 	configASSERT( pxTimeOut );
 	pxTimeOut->xOverflowCount = xNumOfOverflows;
-	pxTimeOut->xTimeOnEntering = xTickCount;
+	pxTimeOut->xTimeOnEntering = xTickCount[ portCORE_ID() ];
 }
 /*-----------------------------------------------------------*/
 
@@ -1934,7 +1955,7 @@ portBASE_TYPE xReturn;
 			else /* We are not blocking indefinitely, perform the checks below. */
 		#endif
 
-		if( ( xNumOfOverflows != pxTimeOut->xOverflowCount ) && ( ( portTickType ) xTickCount >= ( portTickType ) pxTimeOut->xTimeOnEntering ) )
+		if( ( xNumOfOverflows != pxTimeOut->xOverflowCount ) && ( ( portTickType ) xTickCount[ portCORE_ID() ] >= ( portTickType ) pxTimeOut->xTimeOnEntering ) )
 		{
 			/* The tick count is greater than the time at which vTaskSetTimeout()
 			was called, but has also overflowed since vTaskSetTimeOut() was called.
@@ -1942,10 +1963,10 @@ portBASE_TYPE xReturn;
 			passed since vTaskSetTimeout() was called. */
 			xReturn = pdTRUE;
 		}
-		else if( ( ( portTickType ) ( ( portTickType ) xTickCount - ( portTickType ) pxTimeOut->xTimeOnEntering ) ) < ( portTickType ) *pxTicksToWait )
+		else if( ( ( portTickType ) ( ( portTickType ) xTickCount[ portCORE_ID() ] - ( portTickType ) pxTimeOut->xTimeOnEntering ) ) < ( portTickType ) *pxTicksToWait )
 		{
 			/* Not a genuine timeout. Adjust parameters for time remaining. */
-			*pxTicksToWait -= ( ( portTickType ) xTickCount - ( portTickType ) pxTimeOut->xTimeOnEntering );
+			*pxTicksToWait -= ( ( portTickType ) xTickCount[ portCORE_ID() ] - ( portTickType ) pxTimeOut->xTimeOnEntering );
 			vTaskSetTimeOutState( pxTimeOut );
 			xReturn = pdFALSE;
 		}
@@ -2101,7 +2122,7 @@ static void prvInitialiseTCBVariables( tskTCB *pxTCB, const signed char * const 
 	#endif
 
 	// Core ID 초기화
-	pxTCB->uxCoreID = 0;
+	//pxTCB->uxCoreID = 0;
 }
 /*-----------------------------------------------------------*/
 
@@ -2196,7 +2217,7 @@ static void prvAddCurrentTaskToDelayedList( portTickType xTimeToWake )
 	/* The list item will be inserted in wake time order. */
 	listSET_LIST_ITEM_VALUE( &( pxCurrentTCB[ portCORE_ID() ]->xGenericListItem ), xTimeToWake );
 
-	if( xTimeToWake < xTickCount )
+	if( xTimeToWake < xTickCount[ portCORE_ID() ] )
 	{
 		/* Wake time has overflowed.  Place this item in the overflow list. */
 		vListInsert( ( xList * ) pxOverflowDelayedTaskList, ( xListItem * ) &( pxCurrentTCB[ portCORE_ID() ]->xGenericListItem ) );
