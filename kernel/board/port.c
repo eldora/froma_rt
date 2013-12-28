@@ -156,6 +156,45 @@ void vPortInterruptContext( void )
 			" add r2, r2, #56 \n"
 			" str r2, [r1]	\n"
 */
+
+/*    ## Description ##
+ *
+ *    ARM, C, C++ 컴파일러에서는 항상 전체 내림차순 스택을 사용한다. PUSH, POP 명령어는 전체 내림차순 스택을 가정함.
+ *    LDM 및 STM을 통한 스택 구현: http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0204hk/Cacbgchh.html
+ *
+ *    UserMode의 cpsr이 전환되는 Exception Mode에 spsr에 자동 저작이 되고 이어서,
+ *    UserMode의 pc가 전환되는 Exception Mode의 lr에 자동 저장이 됨.
+ *
+			" sub lr, lr, #4				\n"		// lr-=4: ?
+			" srsdb SP, #31					\n"		// srs(스택에 반환 상태(lr) 저장) db(전송 전에 주소를 증가시킨다)
+																		// #31(System)Mode 스텍에 현재 lr레지스터 값을 저장한다
+																		// SRS는 현재 모드의 lr과 SPSR을 modenum에 의해 지정된 모드의 sp에 들어 있는 주소와 그 다음 워드에 각각 저장하고, 
+																		// 경우에 따라 sp의 주소를 업데이트함
+																		// http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0204ik/Cihfdedi.html
+			" stmdb SP, {SP}^			 	\n"		// stm(다중 레지스터 저장) db(전송 전에 주소를 감소시킨다) ^(현재 모드 대신 사용자 모드 레지스터 내부 또는 외부 데이터를 전송)
+																		// User SP 값을 SP주소에 저장
+			" sub SP, SP, #4			 	\n"		// sp-=4: ?
+			" ldmia SP!, {lr}			 	\n"		// SP의 주소에 lr값을 로드 !(최종 주소가 SP에 다시 기록), ia(각 전송 후에 주소를 증가시킴)
+																		// 현재 lr에는 UserMode의 PC값이 들어가 있다.
+			" sub LR, LR, #8 				\n"		// lr-=8: 
+			" stmdb LR, {r0-lr}^ 		\n"		// 
+			" sub LR, LR, #60		 		\n"		// lr-=60: r0-r14(lr)의 15개의 레지스터 값만큼 주소변경을 해야 하니 15*4 = 60임
+	
+			" ldr r9, pxCurrentTCBConst2	\n"
+//			" ldr r8, [r9]					\n"
+			" ldr r8, [r9, %[portCORE], lsl #2]								\n"
+			" str lr, [r8]	 				\n"
+			" bl vPortGICInterruptHandler	\n"
+//			" ldr r8, [r9]					\n"
+			" ldr r8, [r9, %[portCORE], lsl #2]								\n"
+			" ldr lr, [r8]					\n"	
+			" ldmia lr, {r0-lr}^	 	\n"		// lr의 주소를 참조하여 그 위치로부터 pop하면서 UserMode의 r0-lr의 레지스터에 복구
+			" add lr, lr, #60			 	\n"		
+			" rfeia lr				 			\n"  // RFE(예외에서 복귀), IA(전송후에 주소를 증가시킴(내림차순 스택))
+																	 // LR에 들어있는 주소와 그 다음 주소에서 PC와 CPSR를 로드
+																	 // http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0204ik/Cihjacag.html
+			" nop						 				\n"
+*/
 			" sub lr, lr, #4				\n"		/* Adjust the return address. */
 			" srsdb SP, #31					\n"		/* Store the return address and SPSR to the Task's stack. */
 			" stmdb SP, {SP}^			 	\n"		/* Store the SP_USR to the stack. */
@@ -215,8 +254,8 @@ void vPortYieldFromISR( void )
 portBASE_TYPE xPortStartScheduler( void )
 {
 	/* Start the timer that generates the tick ISR.  Interrupts are disabled here already. */
-#if 0
-	if(portCORE_ID()==1)
+#if 1
+	//if(portCORE_ID()==1)
 		prvSetupTimerInterrupt();
 #endif
 	/* Install the interrupt handler. */
@@ -250,12 +289,15 @@ void vPortSysTickHandler( void *pvParameter )
 	/* Clear the Interrupt. */
 	*(portSYSTICK_INTERRUPT_STATUS) = 0x01UL;
 
-	vTaskIncrementTick(portCORE_ID());
+	//vTaskIncrementTick(portCORE_ID());
+	vTaskIncrementTick(0);
 
+#if 0
 #if configUSE_PREEMPTION == 1
 	/* If using preemption, also force a context switch. */
 	vTaskSwitchContext();
 	portEND_SWITCHING_ISR(pdTRUE);
+#endif
 #endif
 }
 /*-----------------------------------------------------------*/

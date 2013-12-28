@@ -92,6 +92,7 @@
 
 //static unsigned long ulUARTSemaphore = 0;
 static volatile spinlock_t uartLock = {0,};
+static volatile spinlock_t uartMiniLock = {0,};
 //PRIVILEGED_DATA volatile spinlock_t lock = {0,};
 //PRIVILEGED_DATA static volatile int xCheckFlag = 0;
 //PRIVILEGED_DATA static volatile int xCheckFlag = 0;
@@ -236,10 +237,18 @@ void vSerialPutString( xComPortHandle pxPort, const signed char * const pcString
 
 signed portBASE_TYPE xSerialGetChar( xComPortHandle pxPort, signed char *pcRxedChar, portTickType xBlockTime )
 {
-	  return xUARTReceiveCharacter( (unsigned long)pxPort, pcRxedChar, xBlockTime );
+	signed value;
+	__spin_lock(&uartMiniLock);
+	value = xUARTReceiveCharacter( (unsigned long)pxPort, pcRxedChar, xBlockTime );
+	__spin_unlock(&uartMiniLock);
+	  return value; 
 }
 
 signed portBASE_TYPE xSerialPutChar( xComPortHandle pxPort, signed char cOutChar, portTickType xBlockTime )
 {
-	  return xUARTSendCharacter( (unsigned long)pxPort, cOutChar, xBlockTime );
+	signed value;
+	__spin_lock(&uartMiniLock);
+	value = xUARTSendCharacter( (unsigned long)pxPort, cOutChar, xBlockTime );
+	__spin_unlock(&uartMiniLock);
+	  return value;
 }
