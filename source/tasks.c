@@ -217,7 +217,7 @@ PRIVILEGED_DATA static portTickType xNextTaskUnblockTime						= ( portTickType )
 	PRIVILEGED_DATA static signed char *pcTraceBufferEnd;
 	PRIVILEGED_DATA static signed portBASE_TYPE xTracing = pdFALSE;
 	static unsigned portBASE_TYPE uxPreviousTask = 255U;
-	PRIVILEGED_DATA static char pcStatusString[ 50 ];
+	PRIVILEGED_DATA static char pcStatusString[ 100 ];
 
 #endif
 
@@ -1277,7 +1277,6 @@ signed portBASE_TYPE xAlreadyYielded = pdFALSE;
  *----------------------------------------------------------*/
 
 
-
 portTickType xTaskGetTickCount( void )
 {
 portTickType xTicks;
@@ -1285,7 +1284,8 @@ portTickType xTicks;
 	/* Critical section required if running on a 16 bit processor. */
 	taskENTER_CRITICAL();
 	{
-		xTicks = xTickCount[ portCORE_ID() ];
+		//xTicks = xTickCount[ portCORE_ID() ];
+		xTicks = xTickCount[ 0 ];
 	}
 	taskEXIT_CRITICAL();
 
@@ -1773,7 +1773,7 @@ void vTaskSwitchContext( void )
 		if(pxTempTCB == pxCurrentTCB[ CORE_ID_REVERSE_MASK(portCORE_ID()) ])
 			listGET_OWNER_OF_NEXT_ENTRY( pxTempTCB, &( pxReadyTasksLists[ uxTopReadyPriority[ portCORE_ID() ] ] ) ); 
 
-	//	sprintf(cAddress, "\r\nCore:%d Switch: %s, %s TopReadyPri:%d\r\n", portCORE_ID(), ((tskTCB*)pxTempTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[portCORE_ID()])->pcTaskName, uxTopReadyPriority[ portCORE_ID() ]);
+		//sprintf(cAddress, "\r\nCore:%d Switch: %s, %s TopReadyPri:%d\r\n", portCORE_ID(), ((tskTCB*)pxTempTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[portCORE_ID()])->pcTaskName, uxTopReadyPriority[ portCORE_ID() ]);
 		//vSerialPutString((xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
 
 		pxCurrentTCB[ portCORE_ID() ] = pxTempTCB;

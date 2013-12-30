@@ -42,8 +42,8 @@ void vPrimeTaskSMP( void *pvParameters ){
 #endif
 			}
 		}
-		//sprintf(primeBuf, "\r\nCore: %d, Time: %4d\r\n", core, (int)(xTaskGetTickCount() - xLastExecutionTime)/1000);
-		sprintf(primeBuf, "\r\nCore: %d, Time: %4d\r\n", core, (int)(xTaskGetTickCount())/1000);
+		sprintf(primeBuf, "\r\nCore: %d, Time: %4d\r\n", core, (int)(xTaskGetTickCount() - xLastExecutionTime));
+		//sprintf(primeBuf, "\r\nCore: %d, Time: %4d\r\n", core, (int)(xTaskGetTickCount())/1000);
 		//sprintf(primeBuf, "\r\nCore: %d, Search Complete!!\r\n", core);
 		vSerialPutString( (xComPortHandle)mainPRINT_PORT, (const signed char * const)primeBuf, strlen(primeBuf) );
 
@@ -92,8 +92,8 @@ void vPrimeTask( void *pvParameters ){
 #endif
 			}
 		}
-		//sprintf(primeBuf, "\r\nCore: %d, Time: %4d\r\n", core, (int)(xTaskGetTickCount() - xLastExecutionTime)/1000);
-		sprintf(primeBuf, "\r\nCore: %d, Search Complete!!\r\n", core);
+		sprintf(primeBuf, "\r\nCore: %d, Time: %4d\r\n", core, (int)(xTaskGetTickCount() - xLastExecutionTime));
+		//sprintf(primeBuf, "\r\nCore: %d, Search Complete!!\r\n", core);
 		vSerialPutString( (xComPortHandle)mainPRINT_PORT, (const signed char * const)primeBuf, strlen(primeBuf) );
 
 		vTaskState(NULL);

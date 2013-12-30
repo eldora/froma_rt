@@ -62,8 +62,8 @@ int main( void )
 {
 	int num = 100000;
 	char cAddress[50];
-	xPRIME xPrimeU0 = {2, 100000};
-	xPRIME xPrimeM0 = {2, 50000};
+	xPRIME xPrimeU0 = {2, 200000};
+	xPRIME xPrimeM0 = {2, 100000};
 
 #if 0
 	sprintf( cAddress, "0 shared:%d\t", sharedValue );

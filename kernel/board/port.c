@@ -255,7 +255,7 @@ portBASE_TYPE xPortStartScheduler( void )
 {
 	/* Start the timer that generates the tick ISR.  Interrupts are disabled here already. */
 #if 1
-	//if(portCORE_ID()==1)
+	if(portCORE_ID()==SECONDARY_CPU_ID)
 		prvSetupTimerInterrupt();
 #endif
 	/* Install the interrupt handler. */
