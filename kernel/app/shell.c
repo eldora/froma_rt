@@ -8,12 +8,12 @@ xTaskHandle xIDLE1TaskHandle;
 extern PRIVILEGED_DATA tskTCB * volatile pxCurrentTCB[portNUM_PROCESSORS];
 
 struct shellCommandEntry gsCommandTable[] = {
-	{"help", "View available commands and their description.", vHelp},
-	{"version", "Show the version information of the OS.", vVersion},
-	{"clear", "Clear Screen.", vClear},
-	{"state", "View Tasks State.", vTaskState},
-	{"prime", "Search Prime Number.", vPrime},
-	{"primeSMP", "Search Prime Number.", vPrimeSMP},
+	{"help", "\t- View available commands and their description.", vHelp},
+	{"version", "\t- Show the version information of the OS.", vVersion},
+	{"clear", "\t- Clear Screen.", vClear},
+	{"state", "\t- View Tasks State.", vTaskState},
+	{"prime", "\t- Search Prime Number.", vPrime},
+	{"primeSMP", "- Search Prime Number using Multi-Core", vPrimeSMP},
 };
 
 void vShellTask( void *pvParameters ){
@@ -87,7 +87,6 @@ void vHelp(const char *pcParameterBuffer){
 	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"=== Shell of FROMA Help ===\r\n", strlen("=== Shell of FROMA Help ===\r\n"));
 	for(i=0; i<iCommandTypeNumber; i++){
 		vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)gsCommandTable[i].pcCommand, strlen(gsCommandTable[i].pcCommand));
-		vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"\t- ", 3);
 		vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)gsCommandTable[i].pcHelp, strlen(gsCommandTable[i].pcHelp));
 		vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"\r\n", strlen("\r\n"));
 	}
@@ -99,7 +98,7 @@ void vClear(const char *pcParameterBuffer){
 
 void vVersion(const char *pcParameterBuffer){
 	portCHAR cTempBuffer[50];
-	portCHAR *pcVersion = "2.00";
+	portCHAR *pcVersion = "2.17";
 
 	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)"Distributor ID:\tFROMA\r\n", strlen("Distributor ID:\tFROMA\r\n"));
 	sprintf(cTempBuffer, "Description:\tFROMA %s SMP Supported\r\n", pcVersion);

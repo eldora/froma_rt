@@ -49,6 +49,14 @@
 - doc, boot폴더 추가
 - NOTE: M1테스크의 파라메터를 2-100000하면 Abort Error, 2-50000하면 이상없음
 
+#### v3.0(20140104) ####
+- tasks.c: vContextSwitch() - 스케줄러 코드 변경 및 schedulerLock 추가 
+- spinlock.h: spinlock 코드를 어셈블리어로 바꾸고 static inline 함수로 작성, spinlock.c 파일 삭제
+- shell.c: 102: FROMA Version 2.17 / 90제거 / 11-15:\t- 추가, 16:- 추가
+- tasks.c: 960, 961: Suspend: 제거 / 1042, 1043: Resume: 제거 / 
+- apps.c: 45, 95: (int)(xTaskGetTickCount() - xLastExecutionTime)에 /10 해줌 & ms표시
+- port.c: 329: RATE - 10,000 으로 0.1ms마다 클럭뛰는걸로 추정
+
 #### NOTE ####
 - Prime 알고리즘은 Trial Division을 사용하였다. 에라토스테네스의 체 알고리즘은 기존 prime값을 배열로 기억하고 있어야 하기 때문에 사용하지 않았다.
 

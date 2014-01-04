@@ -36,7 +36,6 @@ C_FILES =	source/croutine.c \
 			kernel/app/shell.c \
 			kernel/board/port.c \
 			kernel/mm/heap_2.c \
-			kernel/sync/spinlock.c \
 			kernel/uart/omap4_uart.c \
 			kernel/uart/pl031_rtc.c \
 			kernel/uart/printf-stdarg.c \

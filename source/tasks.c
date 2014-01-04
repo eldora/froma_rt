@@ -140,7 +140,7 @@ extern void vSerialPutString( xComPortHandle pxPort, const signed char * const p
 //vSerialPutString((xComPortHandle)2, (const signed char * const)"1\r\n", 4 );
 #endif
 
-static volatile spinlock_t taskSwitchLock = {0,};
+static volatile spinlock_t schedulerLock = {0,};
 
 /*lint -e956 */
 //PRIVILEGED_DATA tskTCB * volatile pxCurrentTCB = NULL;
@@ -957,8 +957,10 @@ tskTCB * pxNewTCB;
 		}
 		taskEXIT_CRITICAL();
 
+#if 0
 		sprintf(cAddress, "\r\nSuspend: %s, %s\r\n", ((tskTCB*)pxTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[xCoreID])->pcTaskName);
 		vSerialPutString( (xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
+#endif
 		if( ( void * ) pxTaskToSuspend == NULL )
 		{
 			if( xSchedulerRunning != pdFALSE )
@@ -1039,8 +1041,10 @@ tskTCB * pxNewTCB;
 		it in the ready list. */
 		pxTCB = ( tskTCB * ) pxTaskToResume;
 
+#if 0
 		sprintf(cAddress, "\r\nResume: %s, %s\r\n", ((tskTCB*)pxTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[xCoreID])->pcTaskName);
 		vSerialPutString( (xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
+#endif
 		/* The parameter cannot be NULL as it is impossible to resume the
 		currently executing task. */
 		if( ( pxTCB != NULL ) && ( pxTCB != pxCurrentTCB[ xCoreID ] ) )
@@ -1715,11 +1719,11 @@ tskTCB * pxTCB;
 void vTaskSwitchContext( void )
 {
 	tskTCB * volatile pxTempTCB;
-	char cAddress[50];
+	xList *pxList;
+	portINT numberOfTasks;
 
-#if 0
-	__spin_lock(&taskSwitchLock);
-#endif
+	__spin_lock(&schedulerLock);
+
 	if( uxSchedulerSuspended != ( unsigned portBASE_TYPE ) pdFALSE )
 	{
 		/* The scheduler is currently suspended - do not allow a context
@@ -1752,39 +1756,33 @@ void vTaskSwitchContext( void )
 	
 		taskFIRST_CHECK_FOR_STACK_OVERFLOW();
 		taskSECOND_CHECK_FOR_STACK_OVERFLOW();
-	
-		/* Find the highest priority queue that contains ready tasks. */
-		while( pdTRUE ) //TAG:AJH
-		{
-			// 현재 ReadyTaskLists의 태스크 개수가 2이상이면 break, 1이면 다른 코어에서 사용중인 TCB인지 확인하고 아니면 break
-			// 개수를 2로 한 이유는 아래에서 pxTempTCB로 걸러주는 루틴이 부족해서 임시적으로 2이상으로 설정함
-			int numberOfTasks = listCURRENT_LIST_LENGTH( &( pxReadyTasksLists[ uxTopReadyPriority[ portCORE_ID() ] ])); 
-			if(numberOfTasks>1 
-					|| ( (numberOfTasks==1) && pxCurrentTCB[ CORE_ID_REVERSE_MASK(portCORE_ID()) ] != listGET_OWNER_OF_HEAD_ENTRY( &( pxReadyTasksLists[ uxTopReadyPriority[ portCORE_ID() ] ]) ) ) )
+
+		pxTempTCB = NULL;
+
+		while(pdTRUE){
+			pxList = &(pxReadyTasksLists[uxTopReadyPriority[ portCORE_ID() ]]);
+			numberOfTasks = pxList->uxNumberOfItems;
+
+			while(numberOfTasks--){
+				listGET_OWNER_OF_NEXT_ENTRY(pxTempTCB, pxList);
+				if(pxTempTCB != pxCurrentTCB[CORE_ID_REVERSE_MASK(portCORE_ID())])
+					break;
+				else
+					pxTempTCB = NULL;
+			}
+
+			if(pxTempTCB != NULL)
 				break;
-			configASSERT( uxTopReadyPriority[ portCORE_ID() ] );
+
+			configASSERT( uxTopReadyPriority[ portCORE_ID() ]);
 			--uxTopReadyPriority[ portCORE_ID() ];
 		}
-	
-		/* listGET_OWNER_OF_NEXT_ENTRY walks through the list, so the tasks of the
-		same priority get an equal share of the processor time. */
-		listGET_OWNER_OF_NEXT_ENTRY( pxTempTCB, &( pxReadyTasksLists[ uxTopReadyPriority[ portCORE_ID() ] ] ) );  //TAG:AJH
-		
-		if(pxTempTCB == pxCurrentTCB[ CORE_ID_REVERSE_MASK(portCORE_ID()) ])
-			listGET_OWNER_OF_NEXT_ENTRY( pxTempTCB, &( pxReadyTasksLists[ uxTopReadyPriority[ portCORE_ID() ] ] ) ); 
-
-		//sprintf(cAddress, "\r\nCore:%d Switch: %s, %s TopReadyPri:%d\r\n", portCORE_ID(), ((tskTCB*)pxTempTCB)->pcTaskName, ((tskTCB*)pxCurrentTCB[portCORE_ID()])->pcTaskName, uxTopReadyPriority[ portCORE_ID() ]);
-		//vSerialPutString((xComPortHandle)2, (const signed char * const)cAddress, strlen(cAddress) );
-
 		pxCurrentTCB[ portCORE_ID() ] = pxTempTCB;
-		__asm volatile( "dmb" ::: "memory" );
 
-#if 0
-		 __spin_unlock(&taskSwitchLock);
-#endif
 		traceTASK_SWITCHED_IN();
 		vWriteTraceToBuffer();
 	}
+	__spin_unlock(&schedulerLock);
 }
 /*-----------------------------------------------------------*/
 
